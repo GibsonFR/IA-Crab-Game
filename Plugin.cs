@@ -10,8 +10,14 @@ using System.Text;
 using System.Threading.Tasks;
 using System.IO;
 
+
 using PlayerManager = MonoBehaviourPublicCSstReshTrheObplBojuUnique;
 using GameManager = MonoBehaviourPublicDi2UIObacspDi2UIObUnique;
+using UnityEngine.Rendering;
+using Cpp2IL.Core.Analysis.PostProcessActions;
+using System.Numerics;
+using System.Linq;
+
 namespace DebugMenu
 {
     [BepInPlugin(PluginInfo.PLUGIN_GUID, PluginInfo.PLUGIN_NAME, PluginInfo.PLUGIN_VERSION)]
@@ -150,17 +156,30 @@ namespace DebugMenu
             Il2CppSystem.Collections.Generic.Dictionary<ulong, PlayerManager> activePlayers = gameManager.activePlayers;
             foreach (Il2CppSystem.Collections.Generic.KeyValuePair<ulong, PlayerManager> pair in activePlayers)
             {
-                if (pair.Value.dead)  
+                //if (pair.Value.dead)  
                     //a normaliser!?
-                    list.Add("0;-1000000;0");
-                else { 
-                    list.Add(pair.Value.transform.position.ToString().Replace(",",";").Replace("(","").Replace(")","").Replace(" ",""));
-                }
+                  //  list.Add("0;-1000000;0");
+                //else { 
+                list.Add(pair.Value.transform.position.ToString().Replace(",",";").Replace("(","").Replace(")","").Replace(" ",""));
+                //}
             }
 
             String[] pos = list.ToArray();
             writeOnFile(path, stringsToCSV(pos));
         }
+
+        static void logDistFromOther(string path)
+        {
+            Il2CppSystem.Collections.Generic.Dictionary<ulong, PlayerManager> activePlayers = gameManager.activePlayers;
+            UnityEngine.Vector3 pos1 = activePlayers.entries.ToList()[0].value.transform.position;
+            UnityEngine.Vector3 pos2 = activePlayers.entries.ToList()[1].value.transform.position;
+
+
+            Double distance = Math.Sqrt(Math.Pow(pos1.x - pos2.x, 2) + Math.Pow(pos1.y - pos2.y, 2) + Math.Pow(pos1.z - pos2.z, 2));
+            writeOnFile(path, distance.ToString());
+        }
+
+
 
         static void logInput(string path)
         {
@@ -223,7 +242,11 @@ namespace DebugMenu
                         gameManager = GameObject.Find("/GameManager (1)").GetComponent<GameManager>();
                     MenuEnabled = !MenuEnabled;
                     logPos("C:\\Program Files (x86)\\Steam\\steamapps\\common\\Crab Game\\test\\pos.txt");
-                }
+                    logDistFromOther("C:\\Program Files (x86)\\Steam\\steamapps\\common\\Crab Game\\test\\distance.txt");
+               }
+
+                
+
             }
         }
         [HarmonyPatch(typeof(MonoBehaviourPublicGaroloGaObInCacachGaUnique),"Awake")]
@@ -237,10 +260,10 @@ namespace DebugMenu
             menu.text = text;
             Plugin.playerBody = null;
             menuObject.transform.SetParent(__instance.transform);
-            menuObject.transform.localPosition = new Vector3(menuObject.transform.localPosition.x,-menuObject.transform.localPosition.y,menuObject.transform.localPosition.z);
+            menuObject.transform.localPosition = new UnityEngine.Vector3(menuObject.transform.localPosition.x,-menuObject.transform.localPosition.y,menuObject.transform.localPosition.z);
             RectTransform rt = menuObject.GetComponent<RectTransform>();
-            rt.pivot = new Vector2(0,1);
-            rt.sizeDelta = new Vector2(1000,1000);
+            rt.pivot = new UnityEngine.Vector2(0,1);
+            rt.sizeDelta = new UnityEngine.Vector2(1000,1000);
         }
     }
 }
