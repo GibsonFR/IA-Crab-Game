@@ -1,0 +1,246 @@
+﻿using BepInEx;
+using BepInEx.IL2CPP;
+using UnityEngine;
+using UnityEngine.UI;
+using UnhollowerRuntimeLib;
+using HarmonyLib;
+using System;
+using System.Collections.Generic;
+using System.Text;
+using System.Threading.Tasks;
+using System.IO;
+
+using PlayerManager = MonoBehaviourPublicCSstReshTrheObplBojuUnique;
+using GameManager = MonoBehaviourPublicDi2UIObacspDi2UIObUnique;
+namespace DebugMenu
+{
+    [BepInPlugin(PluginInfo.PLUGIN_GUID, PluginInfo.PLUGIN_NAME, PluginInfo.PLUGIN_VERSION)]
+    public class Plugin : BasePlugin
+    {
+        public static Camera camera;
+        static GameManager gameManager;
+        static string layout;
+        static string path;
+        public static Rigidbody playerBody;
+        public static System.Collections.Generic.Dictionary<string,System.Func<string>> DebugDataCallbacks;
+
+        public static void registerDataCallback(string s, System.Func<string> f){
+            DebugDataCallbacks.Add(s,f);
+        }
+        public static void registerDataCallbacks(System.Collections.Generic.Dictionary<string,System.Func<string>> dict){
+            foreach (System.Collections.Generic.KeyValuePair<string,System.Func<string>> pair in dict){
+                DebugDataCallbacks.Add(pair.Key,pair.Value);
+            }
+        }
+        public static void checkFileExists(){
+            if (!System.IO.File.Exists(path)){
+                System.IO.File.WriteAllText(path,"Speed: [SPEED] u/s\nPosition: [POSITION]",System.Text.Encoding.UTF8);
+            }
+        }
+        public static void loadLayout(){
+            layout = System.IO.File.ReadAllText(path,System.Text.Encoding.UTF8);
+        }
+        public override void Load()
+        {
+            ClassInjector.RegisterTypeInIl2Cpp<DebugMenu>();
+            DebugDataCallbacks = new System.Collections.Generic.Dictionary<string, System.Func<string>>();
+            // Plugin startup logic
+            Log.LogInfo($"Plugin {PluginInfo.PLUGIN_GUID} is loaded!");
+            path = System.IO.Directory.GetParent(Application.dataPath)+"\\DebugLayout.txt";
+            Harmony.CreateAndPatchAll(typeof(Plugin));
+            checkFileExists();
+            loadLayout();
+            registerDefaultCallbacks();
+        }
+        public static void registerDefaultCallbacks(){
+            registerDataCallbacks(new System.Collections.Generic.Dictionary<string,System.Func<string>>(){
+                {"SPEED",getPlayerSpeed},
+                {"POSITION",getPlayerPos}
+            });
+        }
+        public static Rigidbody getPlayerBody(){
+            GameObject obj = GameObject.Find("/Player");
+            return obj==null?null:obj.GetComponent<Rigidbody>();
+        }
+        public static Rigidbody getPlayerBodySafe(){
+            if (playerBody==null){
+                playerBody=getPlayerBody();
+            }
+            return playerBody;
+        }
+        public static string getPlayerSpeed(){
+            Rigidbody rb = getPlayerBodySafe();
+            return rb==null?"":rb.velocity.magnitude.ToString("0.00");
+        }
+        public static string getPlayerPos(){
+            Rigidbody rb = getPlayerBodySafe();
+            return rb==null?"":rb.transform.position.ToString();
+        }
+
+        public static Camera getCamera()
+        {
+            return UnityEngine.Object.FindObjectOfType<Camera>();
+        }
+        public static Camera getCameraSafe()
+        {
+            if (camera == null)
+            {
+                camera = getCamera();
+            }
+            return camera;
+        }
+        public static string getPlayerRotation(){
+                   Camera cam = getCameraSafe();
+                   return cam == null?"" : cam.transform.rotation.ToString();
+               }
+        
+        static void createFileSafe(string path)
+        {
+            if (File.Exists(path))
+            {
+
+
+                FileStream fileStream = File.Open(path, FileMode.Open);
+
+                fileStream.SetLength(0);
+                fileStream.Close();
+
+            }
+            else
+            {
+                File.Create(path);
+            }
+        }
+        
+        static async Task writeOnFile(string path, string line)
+        {
+            using StreamWriter file = new(path, append: true);
+            await file.WriteLineAsync(line);
+        }
+        
+        static async Task writeOnFileSafe(string path, string line)
+        {
+            createFileSafe(path);
+            await writeOnFile(path, line);
+        }
+        static string stringsToCSV(string[] array)
+        {
+            string result = "";
+
+            if (array.Length > 0)
+            {
+                StringBuilder sb = new StringBuilder();
+
+                foreach (string s in array)
+                {
+                    sb.Append(s).Append(",");
+                }
+
+                result = sb.Remove(sb.Length - 1, 1).ToString();
+            }
+
+            return result;
+        }
+
+        static void logPos(string path)
+        {
+            List<string> list = new List<string>();
+
+        
+            Il2CppSystem.Collections.Generic.Dictionary<ulong, PlayerManager> activePlayers = gameManager.activePlayers;
+            foreach (Il2CppSystem.Collections.Generic.KeyValuePair<ulong, PlayerManager> pair in activePlayers)
+            {
+                if (pair.Value.dead)  
+                    //a normaliser!?
+                    list.Add("0;-1000000;0");
+                else { 
+                    list.Add(pair.Value.transform.position.ToString().Replace(",",";").Replace("(","").Replace(")","").Replace(" ",""));
+                }
+            }
+
+            String[] pos = list.ToArray();
+            writeOnFile(path, stringsToCSV(pos));
+        }
+
+        static void logInput(string path)
+        {
+            List<string> list = new List<string>();
+
+            if (Input.GetKey("z"))
+                list.Add("1");
+            else
+                list.Add("0");
+            if (Input.GetKey("q"))
+                list.Add("1");
+            else
+                list.Add("0");
+            if (Input.GetKey("s"))
+                list.Add("1");
+            else
+                list.Add("0");
+            if (Input.GetKey("d"))
+                list.Add("1");
+            else
+                list.Add("0");
+            if (Input.GetKeyDown("space"))
+                list.Add("1");
+            else
+                list.Add("0");
+            if (Input.GetKey("left shift"))
+                list.Add("1");
+            else
+                list.Add("0");
+            if (Input.GetKey("left ctrl"))
+                list.Add("1");
+            else
+                list.Add("0");
+            if (Input.GetMouseButtonDown(0))
+                list.Add("1");
+            else
+                list.Add("0");
+            
+
+            String[] keys = list.ToArray();
+
+            writeOnFile(path,stringsToCSV(keys));
+        }
+
+
+        public static string formatLayout(){
+            string formatted = layout;
+            foreach (System.Collections.Generic.KeyValuePair<string,System.Func<string>> pair in DebugDataCallbacks){
+                formatted = formatted.Replace("["+pair.Key+"]",pair.Value());
+            }
+            return formatted;
+        }
+        public class DebugMenu : MonoBehaviour {
+            public Text text;
+            bool MenuEnabled = false;
+            void Update(){
+                text.text = MenuEnabled ? formatLayout() : ""; 
+                if(Input.GetKeyDown("f3")){
+                    if (gameManager == null)
+                        gameManager = GameObject.Find("/GameManager (1)").GetComponent<GameManager>();
+                    MenuEnabled = !MenuEnabled;
+                    logPos("C:\\Program Files (x86)\\Steam\\steamapps\\common\\Crab Game\\test\\pos.txt");
+                }
+            }
+        }
+        [HarmonyPatch(typeof(MonoBehaviourPublicGaroloGaObInCacachGaUnique),"Awake")]
+        [HarmonyPostfix]
+        public static void UIAwakePatch(MonoBehaviourPublicGaroloGaObInCacachGaUnique __instance){
+            GameObject menuObject = new GameObject();
+            Text text = menuObject.AddComponent<Text>();
+            text.font = (Font)Resources.GetBuiltinResource<Font>("Arial.ttf");
+            text.raycastTarget = false;
+            DebugMenu menu = menuObject.AddComponent<DebugMenu>();
+            menu.text = text;
+            Plugin.playerBody = null;
+            menuObject.transform.SetParent(__instance.transform);
+            menuObject.transform.localPosition = new Vector3(menuObject.transform.localPosition.x,-menuObject.transform.localPosition.y,menuObject.transform.localPosition.z);
+            RectTransform rt = menuObject.GetComponent<RectTransform>();
+            rt.pivot = new Vector2(0,1);
+            rt.sizeDelta = new Vector2(1000,1000);
+        }
+    }
+}
