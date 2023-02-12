@@ -151,6 +151,15 @@ namespace DebugMenu
             return result;
         }
 
+        static void logSpeedOther(string path)
+        {
+            Il2CppSystem.Collections.Generic.Dictionary<ulong, PlayerManager> activePlayers = gameManager.activePlayers;
+            float speed = activePlayers.entries.ToList()[1].value.GetComponent<Rigidbody>().velocity.magnitude;
+
+            writeOnFile(path, speed.ToString("0.0000"));
+
+        }
+
         static void logPos(string path)
         {
             List<string> list = new List<string>();
@@ -163,7 +172,7 @@ namespace DebugMenu
                     //a normaliser!?
                   //  list.Add("0;-1000000;0");
                 //else { 
-                list.Add(pair.Value.transform.position.ToString().Replace(",",";").Replace("(","").Replace(")","").Replace(" ",""));
+                list.Add(pair.Value.transform.position.ToString("0.0000").Replace(",",";").Replace("(","").Replace(")","").Replace(" ",""));
                 //}
             }
 
@@ -178,8 +187,19 @@ namespace DebugMenu
             UnityEngine.Vector3 pos2 = activePlayers.entries.ToList()[1].value.transform.position;
 
             Double distance = Math.Sqrt(Math.Pow(pos1.x - pos2.x, 2) + Math.Pow(pos1.y - pos2.y, 2) + Math.Pow(pos1.z - pos2.z, 2));
-            writeOnFile(path, distance.ToString());
+            writeOnFile(path, distance.ToString("0.0000"));
         }
+
+        static void logDirFromOther(string path)
+        {
+            Il2CppSystem.Collections.Generic.Dictionary<ulong, PlayerManager> activePlayers = gameManager.activePlayers;
+            UnityEngine.Vector3 pos1 = activePlayers.entries.ToList()[0].value.transform.position;
+            UnityEngine.Vector3 pos2 = activePlayers.entries.ToList()[1].value.transform.position;
+
+            UnityEngine.Vector3 dir = new UnityEngine.Vector3((pos2.x - pos1.x ), (pos2.y - pos1.y),(pos2.z - pos1.z));
+            writeOnFile(path, dir.ToString("0.0000").Replace(",", ";").Replace("(", "").Replace(")", "").Replace(" ", ""));
+        }
+
 
 
 
@@ -247,12 +267,9 @@ namespace DebugMenu
                     MenuEnabled = !MenuEnabled;
                     logPos("C:\\Program Files (x86)\\Steam\\steamapps\\common\\Crab Game\\test\\pos.txt");
                     logDistFromOther("C:\\Program Files (x86)\\Steam\\steamapps\\common\\Crab Game\\test\\distance.txt");
-
-
+                    logDirFromOther("C:\\Program Files (x86)\\Steam\\steamapps\\common\\Crab Game\\test\\direction.txt");
+                    logSpeedOther("C:\\Program Files (x86)\\Steam\\steamapps\\common\\Crab Game\\test\\speedOpponent.txt");
                 }
-
-                
-
             }
         }
         [HarmonyPatch(typeof(MonoBehaviourPublicGaroloGaObInCacachGaUnique),"Awake")]
