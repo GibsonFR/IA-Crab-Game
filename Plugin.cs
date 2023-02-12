@@ -13,6 +13,9 @@ using System.IO;
 
 using PlayerManager = MonoBehaviourPublicCSstReshTrheObplBojuUnique;
 using GameManager = MonoBehaviourPublicDi2UIObacspDi2UIObUnique;
+using ChatBox = MonoBehaviourPublicRaovTMinTemeColoonCoUnique;
+
+
 using UnityEngine.Rendering;
 using Cpp2IL.Core.Analysis.PostProcessActions;
 using System.Numerics;
@@ -174,7 +177,6 @@ namespace DebugMenu
             UnityEngine.Vector3 pos1 = activePlayers.entries.ToList()[0].value.transform.position;
             UnityEngine.Vector3 pos2 = activePlayers.entries.ToList()[1].value.transform.position;
 
-
             Double distance = Math.Sqrt(Math.Pow(pos1.x - pos2.x, 2) + Math.Pow(pos1.y - pos2.y, 2) + Math.Pow(pos1.z - pos2.z, 2));
             writeOnFile(path, distance.ToString());
         }
@@ -236,14 +238,18 @@ namespace DebugMenu
             public Text text;
             bool MenuEnabled = false;
             void Update(){
+
                 text.text = MenuEnabled ? formatLayout() : ""; 
                 if(Input.GetKeyDown("f3")){
                     if (gameManager == null)
                         gameManager = GameObject.Find("/GameManager (1)").GetComponent<GameManager>();
+                    //ChatBox.Instance.ForceMessage("Data Registered");
                     MenuEnabled = !MenuEnabled;
                     logPos("C:\\Program Files (x86)\\Steam\\steamapps\\common\\Crab Game\\test\\pos.txt");
                     logDistFromOther("C:\\Program Files (x86)\\Steam\\steamapps\\common\\Crab Game\\test\\distance.txt");
-               }
+
+
+                }
 
                 
 
