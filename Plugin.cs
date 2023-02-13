@@ -133,9 +133,10 @@ namespace DebugMenu
             }
             return playerBody;
         }
-        public static string getPlayerSpeed(){
+        public static string getPlayerSpeed()
+        {
             Rigidbody rb = getPlayerBodySafe();
-            return rb==null?"":rb.velocity.magnitude.ToString("0.00");
+            return rb == null ? "" : rb.velocity.magnitude.ToString("0.00");
         }
         public static string getPlayerPos(){
             Rigidbody rb = getPlayerBodySafe();
@@ -270,7 +271,16 @@ namespace DebugMenu
         }
 
 
+        static void amITagged()
+        {
+            Il2CppSystem.Collections.Generic.Dictionary<ulong, PlayerManager> activePlayers = gameManager.activePlayers;
 
+            PlayerInventory playerInventory = activePlayers.entries.ToList()[0].value.GetComponent<PlayerInventory>();
+
+
+            if (playerInventory.currentItem != null)
+                ChatBox.Instance.ForceMessage("You are tagged");
+        }
 
         static void logInput(string path)
         {
@@ -326,14 +336,17 @@ namespace DebugMenu
         public class DebugMenu : MonoBehaviour {
             public Text text;
             bool MenuEnabled = false;
+
             void Update(){
 
                 text.text = MenuEnabled ? formatLayout() : ""; 
                 if(Input.GetKeyDown("f3")){
+                    
                     if (gameManager == null)
                         gameManager = GameObject.Find("/GameManager (1)").GetComponent<GameManager>();
                     //ChatBox.Instance.ForceMessage("Data Registered");
                     MenuEnabled = !MenuEnabled;
+                    amITagged();
                     logPos("C:\\Program Files (x86)\\Steam\\steamapps\\common\\Crab Game\\test\\pos.txt");
                     logDistFromOther("C:\\Program Files (x86)\\Steam\\steamapps\\common\\Crab Game\\test\\distance.txt");
                     logDirFromOther("C:\\Program Files (x86)\\Steam\\steamapps\\common\\Crab Game\\test\\direction.txt");
