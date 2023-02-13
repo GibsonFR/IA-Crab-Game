@@ -1,4 +1,64 @@
-﻿using BepInEx;
+﻿global using GameSettings = MonoBehaviourPublicObjomaOblogaTMObseprUnique;
+global using SteamManager = MonoBehaviourPublicObInUIgaStCSBoStcuCSUnique;
+global using GameManager = MonoBehaviourPublicDi2UIObacspDi2UIObUnique;
+global using GameUI = MonoBehaviourPublicGaroloGaObInCacachGaUnique;
+global using ChatBox = MonoBehaviourPublicRaovTMinTemeColoonCoUnique;
+global using DamageVignette = MonoBehaviourPublicRadaSiSiSiUnique;
+global using PlayerMovement = MonoBehaviourPublicGaplfoGaTrorplTrRiBoUnique;
+global using ServerSend = MonoBehaviourPublicInInUnique;
+global using MapManager = MonoBehaviourPublicObInMamaLi1plMadeMaUnique;
+global using GameModeManager = MonoBehaviourPublicGadealGaLi1pralObInUnique;
+global using MapSize = Map.EnumNPublicSealedvasmmelaan5vUnique;
+global using BouncePlayer = MonoBehaviourPublicSicofoSimuupInSiboVeUnique;
+global using JumpPad = MonoBehaviourPublicSiBopuSiUnique;
+global using SharedObjectManager = MonoBehaviourPublicDi2InObInObInUnique;
+global using SnowballPile = MonoBehaviour1PublicBoInSiUnique;
+global using LobbyReadyInteract = MonoBehaviour1PublicTrbuObreunObBoVeVeVeUnique;
+global using GameModeTag = GameModePublicLi1UIUnique;
+global using Packet = ObjectPublicIDisposableLi1ByInByBoUnique;
+global using GameServer = MonoBehaviourPublicObInCoIE85SiAwVoFoCoUnique;
+global using TimerUI = MonoBehaviourPublicTetifrTeStBoStfoSiTiUnique;
+global using Crosshair = MonoBehaviourPublicRedoleReritoboReBoenUnique;
+global using LobbyManager = MonoBehaviourPublicCSDi2UIInstObUIloDiUnique;
+global using ThrownSnowball = MonoBehaviour1PublicTrtrGahiRiCoBoItVeBoUnique;
+global using PlayerInventory = MonoBehaviourPublicItDi2ObIninInTrweGaUnique;
+global using ItemGun = MonoBehaviour2PublicGathObauTrgumuGaSiBoUnique;
+global using NetStatus = MonoBehaviourPublicStLi1InInUnique;
+global using GameLoop = MonoBehaviourPublicObInLi1GagasmLi1GaUnique;
+global using LocalSfx = MonoBehaviourPublicAuhibuAusoObInAuUnique;
+global using VoiceChat = MonoBehaviourPublicAusoMeInObInInInInUnique;
+global using PersistentPlayerData = MonoBehaviourPublicBofrhnBoObInUnique;
+global using ServerClock = MonoBehaviourPublicSiObSiInSiUnique;
+global using EffectManager = MonoBehaviourPublicGataInefObInUnique;
+global using MakeDissonance = MonoBehaviourPublicGadiUnique;
+global using MusicController = MonoBehaviourPublicAuInMeAufuscwiAuObSiUnique;
+global using SongType = MonoBehaviourPublicAuInMeAufuscwiAuObSiUnique.EnumNPublicSealedvaNoInMeFuScWi7vUnique;
+global using Cosmetics = MonoBehaviourPublicLi1CoalDi2InitCoUIUnique;
+global using Quests = MonoBehaviourPublicLi1QudaDi2InquQuacUnique;
+global using SteamInventory = MonoBehaviourPublicStCaSt1ObSthaUIStmaUnique;
+global using InputManager = MonoBehaviourPublicInfobaInlerijuIncrspUnique;
+global using PPController = MonoBehaviourPublicMoBlAmChPoObInUnique;
+global using SteamPacketManager = MonoBehaviourPublicInStInpabyDiInpaby2Unique;
+global using WorkshopUtility = MonoBehaviourPublicStwodeStUnique;
+global using ChatFilter = MonoBehaviourPublicTeprLi1StUnique;
+global using LoadingScreen = MonoBehaviourPublicTeprUIObUIBotiRabamaUnique;
+global using RedLightSafeZone = MonoBehaviourPublicLi1ObsaInObUnique;// rlgl safe zonees are also used in race and king of the hill because of course they are
+global using Ladder = MonoBehaviourPublicLi1CoonUnique;
+global using MovingObject = MonoBehaviourPublicVeofSispRiVeSiofUnique;
+global using WaterSplash = MonoBehaviourPublicGaspLi1ObUnique;
+global using MoveLava = MonoBehaviourPublicVeSioflaSiAulasiBoSiUnique;
+global using KillPlayerOutOfBounds = MonoBehaviourPublicSikiUnique;
+global using GameModeTimer = MonoBehaviourPublicTetifrTeStBoStfoSiTiUnique;
+global using PlayerManager = MonoBehaviourPublicCSstReshTrheObplBojuUnique;
+global using PlayerServerCommunication = MonoBehaviourPublicTrrocaTrInSiVeSipoObUnique;
+global using DetectItems = MonoBehaviourPublicLawhTrcaGacuMaouUnique;
+global using PlayerStatus = MonoBehaviourPublicObcumaObInplInObUnique;
+global using PunchPlayers = MonoBehaviourPublicObsfBoLawhSiUnique;
+global using RevealPlayerNames = MonoBehaviourPublicLi1ObplLawhRaUnique;
+global using MoveCamera = MonoBehaviourPublicTrplVeofdeVevaCaRiVeUnique;
+
+//Using
+using BepInEx;
 using BepInEx.IL2CPP;
 using UnityEngine;
 using UnityEngine.UI;
@@ -10,10 +70,6 @@ using System.Text;
 using System.Threading.Tasks;
 using System.IO;
 
-
-using PlayerManager = MonoBehaviourPublicCSstReshTrheObplBojuUnique;
-using GameManager = MonoBehaviourPublicDi2UIObacspDi2UIObUnique;
-using ChatBox = MonoBehaviourPublicRaovTMinTemeColoonCoUnique;
 
 
 using UnityEngine.Rendering;
@@ -202,6 +258,19 @@ namespace DebugMenu
 
 
 
+        static void logHealth(string path)
+        {
+            Il2CppSystem.Collections.Generic.Dictionary<ulong, PlayerManager> activePlayers = gameManager.activePlayers;
+
+            PlayerStatus playerStatus = activePlayers.entries.ToList()[0].value.GetComponent<PlayerStatus>();
+
+            string health = playerStatus.currentHp.ToString();
+
+            writeOnFile(path, health);
+        }
+
+
+
 
         static void logInput(string path)
         {
@@ -269,6 +338,7 @@ namespace DebugMenu
                     logDistFromOther("C:\\Program Files (x86)\\Steam\\steamapps\\common\\Crab Game\\test\\distance.txt");
                     logDirFromOther("C:\\Program Files (x86)\\Steam\\steamapps\\common\\Crab Game\\test\\direction.txt");
                     logSpeedOther("C:\\Program Files (x86)\\Steam\\steamapps\\common\\Crab Game\\test\\speedOpponent.txt");
+                    logHealth("C:\\Program Files (x86)\\Steam\\steamapps\\common\\Crab Game\\test\\health.txt");
                 }
             }
         }
