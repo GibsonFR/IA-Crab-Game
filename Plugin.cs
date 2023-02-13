@@ -76,6 +76,7 @@ using UnityEngine.Rendering;
 using Cpp2IL.Core.Analysis.PostProcessActions;
 using System.Numerics;
 using System.Linq;
+using Cpp2IL.Core.Analysis.Actions.x86;
 
 namespace DebugMenu
 {
@@ -87,22 +88,28 @@ namespace DebugMenu
         static string layout;
         static string path;
         public static Rigidbody playerBody;
+        public static Rigidbody otherPlayerBody;
+        public static string otherPlayerUsername;
+        public static UnityEngine.Vector3 playerOtherPosition;
+        public static UnityEngine.Vector3 oldOtherPlayerPosition;
         public static System.Collections.Generic.Dictionary<string,System.Func<string>> DebugDataCallbacks;
+        private static float smoothedSpeed = 0;
+        private static float smoothingFactor = 0.7f;
 
-        public static void registerDataCallback(string s, System.Func<string> f){
+        public static void RegisterDataCallback(string s, System.Func<string> f){
             DebugDataCallbacks.Add(s,f);
         }
-        public static void registerDataCallbacks(System.Collections.Generic.Dictionary<string,System.Func<string>> dict){
+        public static void RegisterDataCallbacks(System.Collections.Generic.Dictionary<string,System.Func<string>> dict){
             foreach (System.Collections.Generic.KeyValuePair<string,System.Func<string>> pair in dict){
                 DebugDataCallbacks.Add(pair.Key,pair.Value);
             }
         }
-        public static void checkFileExists(){
+        public static void CheckFileExists(){
             if (!System.IO.File.Exists(path)){
                 System.IO.File.WriteAllText(path,"Speed: [SPEED] u/s\nPosition: [POSITION]",System.Text.Encoding.UTF8);
             }
         }
-        public static void loadLayout(){
+        public static void LoadLayout(){
             layout = System.IO.File.ReadAllText(path,System.Text.Encoding.UTF8);
         }
         public override void Load()
@@ -113,54 +120,121 @@ namespace DebugMenu
             Log.LogInfo($"Plugin {PluginInfo.PLUGIN_GUID} is loaded!");
             path = System.IO.Directory.GetParent(Application.dataPath)+"\\DebugLayout.txt";
             Harmony.CreateAndPatchAll(typeof(Plugin));
-            checkFileExists();
-            loadLayout();
-            registerDefaultCallbacks();
+            CheckFileExists();
+            LoadLayout();
+            RegisterDefaultCallbacks();
         }
-        public static void registerDefaultCallbacks(){
-            registerDataCallbacks(new System.Collections.Generic.Dictionary<string,System.Func<string>>(){
-                {"SPEED",getPlayerSpeed},
-                {"POSITION",getPlayerPos}
+        public static void RegisterDefaultCallbacks(){
+            RegisterDataCallbacks(new System.Collections.Generic.Dictionary<string,System.Func<string>>(){
+                {"SPEED", GetPlayerSpeed},
+                {"ROTATION", GetPlayerRotation},
+                {"POSITION", GetPlayerPosition},
+                {"OTHERPLAYER", GetOtherPlayerUsernameSafe},
+                {"OTHERSPEED", GetOtherPlayerSpeed},
+                {"OTHERPOSITION", GetOtherPlayerPositionStr},
+
             });
         }
-        public static Rigidbody getPlayerBody(){
-            GameObject obj = GameObject.Find("/Player");
-            return obj==null?null:obj.GetComponent<Rigidbody>();
-        }
-        public static Rigidbody getPlayerBodySafe(){
-            if (playerBody==null){
-                playerBody=getPlayerBody();
-            }
-            return playerBody;
-        }
-        public static string getPlayerSpeed()
+        public static string GetOtherPlayerUsername()
         {
-            Rigidbody rb = getPlayerBodySafe();
-            return rb == null ? "" : rb.velocity.magnitude.ToString("0.00");
-        }
-        public static string getPlayerPos(){
-            Rigidbody rb = getPlayerBodySafe();
-            return rb==null?"":rb.transform.position.ToString();
+            string name = gameManager.activePlayers.entries.ToList()[1].value.username.ToString();
+            return name == null ? "" : name;
         }
 
-        public static Camera getCamera()
+        public static string GetOtherPlayerUsernameSafe()
+        {
+            if (otherPlayerUsername == null)
+            {
+                otherPlayerUsername = GetOtherPlayerUsername();
+            }
+            return otherPlayerUsername;
+        }
+        public static Rigidbody GetOtherPlayerBody()
+        {
+            Rigidbody rb = gameManager.activePlayers.entries.ToList()[1].value.GetComponent<Rigidbody>();
+            return rb == null ? null : rb;
+        }
+
+        public static Rigidbody GetOtherPlayerBodySafe()
+        {
+            if (otherPlayerBody == null)
+            {
+                otherPlayerBody = GetOtherPlayerBody();
+            }
+            return otherPlayerBody;
+        }
+      
+        public static UnityEngine.Vector3 GetOtherPlayerPosition()
+        {
+
+            Rigidbody rb = GetOtherPlayerBodySafe();
+            UnityEngine.Vector3 position = new UnityEngine.Vector3(rb.position.x, rb.position.y, rb.position.z);
+            return rb == null ? new UnityEngine.Vector3(0,0,0): position;
+        }
+        public static string GetOtherPlayerPositionStr()
+        {
+
+            Rigidbody rb = GetOtherPlayerBodySafe();
+            UnityEngine.Vector3 position = new UnityEngine.Vector3(rb.position.x, rb.position.y, rb.position.z);
+            return rb == null ? new UnityEngine.Vector3(0, 0, 0).ToString() : position.ToString();
+        }
+
+        public static string GetOtherPlayerSpeed()
+        {
+            UnityEngine.Vector3 pos = GetOtherPlayerPosition();
+            UnityEngine.Vector3 oldpos = oldOtherPlayerPosition;
+
+            double distance = Math.Sqrt(Math.Pow(pos.x - oldpos.x, 2) + Math.Pow(pos.y - oldpos.y, 2) + Math.Pow(pos.z - oldpos.z, 2));
+
+            double speedDouble = distance / 0.2;
+
+            smoothedSpeed = (float)((smoothedSpeed * smoothingFactor + (1 - smoothingFactor) * speedDouble) * 0.99);
+            string speed = smoothedSpeed.ToString("0.0");
+
+            return speed;
+        }
+
+        public static Camera GetCamera()
         {
             return UnityEngine.Object.FindObjectOfType<Camera>();
         }
-        public static Camera getCameraSafe()
+        public static Camera GetCameraSafe()
         {
             if (camera == null)
             {
-                camera = getCamera();
+                camera = GetCamera();
             }
             return camera;
         }
-        public static string getPlayerRotation(){
-                   Camera cam = getCameraSafe();
+        public static string GetPlayerRotation(){
+                   Camera cam = GetCameraSafe();
                    return cam == null?"" : cam.transform.rotation.ToString();
-               }
-        
-        static void createFileSafe(string path)
+        }
+        public static Rigidbody GetPlayerBody()
+        {
+            GameObject obj = GameObject.Find("/Player");
+            return obj == null ? null : obj.GetComponent<Rigidbody>();
+        }
+        public static Rigidbody GetPlayerBodySafe()
+        {
+            if (playerBody == null)
+            {
+                playerBody = GetPlayerBody();
+            }
+            return playerBody;
+        }
+        public static string GetPlayerPosition()
+        {
+            Rigidbody rb = GetPlayerBodySafe();
+            return rb == null ? "" : rb.transform.position.ToString();
+        }
+        public static string GetPlayerSpeed()
+        {
+            Rigidbody rb = GetPlayerBodySafe();
+            return rb == null ? "" : rb.velocity.magnitude.ToString("0.00");
+        }
+
+        static void CreateFileSafe(string path)
         {
             if (File.Exists(path))
             {
@@ -178,7 +252,7 @@ namespace DebugMenu
             }
         }
         
-        static async Task writeOnFile(string path, string line)
+        static async Task WriteOnFile(string path, string line)
         {
             using StreamWriter file = new(path, append: true);
             await file.WriteLineAsync(line);
@@ -186,10 +260,10 @@ namespace DebugMenu
         
         static async Task writeOnFileSafe(string path, string line)
         {
-            createFileSafe(path);
-            await writeOnFile(path, line);
+            CreateFileSafe(path);
+            await WriteOnFile(path, line);
         }
-        static string stringsToCSV(string[] array)
+        static string StringsToCSV(string[] array)
         {
             string result = "";
 
@@ -208,16 +282,16 @@ namespace DebugMenu
             return result;
         }
 
-        static void logSpeedOther(string path)
+        static void LogSpeedOther(string path)
         {
             Il2CppSystem.Collections.Generic.Dictionary<ulong, PlayerManager> activePlayers = gameManager.activePlayers;
             float speed = activePlayers.entries.ToList()[1].value.GetComponent<Rigidbody>().velocity.magnitude;
 
-            writeOnFile(path, speed.ToString("0.0000"));
+            WriteOnFile(path, speed.ToString("0.0000"));
 
         }
 
-        static void logPos(string path)
+        static void LogPos(string path)
         {
             List<string> list = new List<string>();
 
@@ -234,32 +308,32 @@ namespace DebugMenu
             }
 
             String[] pos = list.ToArray();
-            writeOnFile(path, stringsToCSV(pos));
+            WriteOnFile(path, StringsToCSV(pos));
         }
 
-        static void logDistFromOther(string path)
+        static void LogDistFromOther(string path)
         {
             Il2CppSystem.Collections.Generic.Dictionary<ulong, PlayerManager> activePlayers = gameManager.activePlayers;
             UnityEngine.Vector3 pos1 = activePlayers.entries.ToList()[0].value.transform.position;
             UnityEngine.Vector3 pos2 = activePlayers.entries.ToList()[1].value.transform.position;
 
             Double distance = Math.Sqrt(Math.Pow(pos1.x - pos2.x, 2) + Math.Pow(pos1.y - pos2.y, 2) + Math.Pow(pos1.z - pos2.z, 2));
-            writeOnFile(path, distance.ToString("0.0000"));
+            WriteOnFile(path, distance.ToString("0.0000"));
         }
 
-        static void logDirFromOther(string path)
+        static void LogDirFromOther(string path)
         {
             Il2CppSystem.Collections.Generic.Dictionary<ulong, PlayerManager> activePlayers = gameManager.activePlayers;
             UnityEngine.Vector3 pos1 = activePlayers.entries.ToList()[0].value.transform.position;
             UnityEngine.Vector3 pos2 = activePlayers.entries.ToList()[1].value.transform.position;
 
             UnityEngine.Vector3 dir = new UnityEngine.Vector3((pos2.x - pos1.x ), (pos2.y - pos1.y),(pos2.z - pos1.z));
-            writeOnFile(path, dir.ToString("0.0000").Replace(",", ";").Replace("(", "").Replace(")", "").Replace(" ", ""));
+            WriteOnFile(path, dir.ToString("0.0000").Replace(",", ";").Replace("(", "").Replace(")", "").Replace(" ", ""));
         }
 
 
 
-        static void logHealth(string path)
+        static void LogHealth(string path)
         {
             Il2CppSystem.Collections.Generic.Dictionary<ulong, PlayerManager> activePlayers = gameManager.activePlayers;
 
@@ -267,11 +341,11 @@ namespace DebugMenu
 
             string health = playerStatus.currentHp.ToString();
 
-            writeOnFile(path, health);
+            WriteOnFile(path, health);
         }
 
 
-        static void amITagged()
+        static void AmITagged()
         {
             Il2CppSystem.Collections.Generic.Dictionary<ulong, PlayerManager> activePlayers = gameManager.activePlayers;
 
@@ -280,9 +354,39 @@ namespace DebugMenu
 
             if (playerInventory.currentItem != null)
                 ChatBox.Instance.ForceMessage("You are tagged");
-        }
 
-        static void logInput(string path)
+
+
+            //UnityEngine.Object.FindObjectOfType<MusicController>().PlaySong(SongType.WinMusic);
+        }
+        /*
+        static void AntiCheat()
+        {
+            Il2CppSystem.Collections.Generic.Dictionary<ulong, PlayerManager> activePlayers = gameManager.activePlayers;
+
+            for (int i = 0; i < 40; i++)
+            {
+                Rigidbody rb = activePlayers.entries.ToList()[i].value.GetComponent<Rigidbody>();
+                PlayerInventory playerInventory = activePlayers.entries.ToList()[i].value.GetComponent<PlayerInventory>();
+
+                UnityEngine.Vector3 velocity = new UnityEngine.Vector3(rb.velocity.x, 0, rb.velocity.z);
+                float speed = velocity.magnitude; 
+
+                if (speed > 80)
+                {
+                    ChatBox.Instance.SendMessage(activePlayers.entries.ToList()[i].value.username.ToString() + " is sus. Speed = " + activePlayers.entries.ToList()[i].value.GetComponent<Rigidbody>().velocity.magnitude.ToString());
+                }
+                else if (speed > 30)
+                {
+                    ChatBox.Instance.SendMessage(activePlayers.entries.ToList()[i].value.username.ToString() + " is fast. Speed = " + activePlayers.entries.ToList()[i].value.GetComponent<Rigidbody>().velocity.magnitude.ToString());
+                }
+            }
+        }*/
+
+
+
+
+        static void LogInput(string path)
         {
             List<string> list = new List<string>();
 
@@ -322,11 +426,11 @@ namespace DebugMenu
 
             String[] keys = list.ToArray();
 
-            writeOnFile(path,stringsToCSV(keys));
+            WriteOnFile(path,StringsToCSV(keys));
         }
 
 
-        public static string formatLayout(){
+        public static string FormatLayout(){
             string formatted = layout;
             foreach (System.Collections.Generic.KeyValuePair<string,System.Func<string>> pair in DebugDataCallbacks){
                 formatted = formatted.Replace("["+pair.Key+"]",pair.Value());
@@ -337,21 +441,32 @@ namespace DebugMenu
             public Text text;
             bool MenuEnabled = false;
 
+            DateTime start = DateTime.Now;
+
+
             void Update(){
 
-                text.text = MenuEnabled ? formatLayout() : ""; 
+                DateTime end = DateTime.Now;
+
+                TimeSpan ts = (end - start);
+                if (ts.TotalMilliseconds >= 200)
+                {
+                    start = DateTime.Now;
+                    text.text = MenuEnabled ? FormatLayout() : "";
+                    oldOtherPlayerPosition = GetOtherPlayerPosition();
+                    AmITagged();
+                    //AntiCheat();
+                }
                 if(Input.GetKeyDown("f3")){
-                    
-                    if (gameManager == null)
-                        gameManager = GameObject.Find("/GameManager (1)").GetComponent<GameManager>();
+                    gameManager = GameObject.Find("/GameManager (1)").GetComponent<GameManager>();
                     //ChatBox.Instance.ForceMessage("Data Registered");
                     MenuEnabled = !MenuEnabled;
-                    amITagged();
-                    logPos("C:\\Program Files (x86)\\Steam\\steamapps\\common\\Crab Game\\test\\pos.txt");
-                    logDistFromOther("C:\\Program Files (x86)\\Steam\\steamapps\\common\\Crab Game\\test\\distance.txt");
-                    logDirFromOther("C:\\Program Files (x86)\\Steam\\steamapps\\common\\Crab Game\\test\\direction.txt");
-                    logSpeedOther("C:\\Program Files (x86)\\Steam\\steamapps\\common\\Crab Game\\test\\speedOpponent.txt");
-                    logHealth("C:\\Program Files (x86)\\Steam\\steamapps\\common\\Crab Game\\test\\health.txt");
+                    LogPos("C:\\Program Files (x86)\\Steam\\steamapps\\common\\Crab Game\\test\\pos.txt");
+                    LogDistFromOther("C:\\Program Files (x86)\\Steam\\steamapps\\common\\Crab Game\\test\\distance.txt");
+                    LogDirFromOther("C:\\Program Files (x86)\\Steam\\steamapps\\common\\Crab Game\\test\\direction.txt");
+                    LogHealth("C:\\Program Files (x86)\\Steam\\steamapps\\common\\Crab Game\\test\\health.txt");
+
+
                 }
             }
         }
@@ -365,6 +480,8 @@ namespace DebugMenu
             DebugMenu menu = menuObject.AddComponent<DebugMenu>();
             menu.text = text;
             Plugin.playerBody = null;
+            Plugin.otherPlayerBody = null;
+            Plugin.otherPlayerUsername = null;
             menuObject.transform.SetParent(__instance.transform);
             menuObject.transform.localPosition = new UnityEngine.Vector3(menuObject.transform.localPosition.x,-menuObject.transform.localPosition.y,menuObject.transform.localPosition.z);
             RectTransform rt = menuObject.GetComponent<RectTransform>();
