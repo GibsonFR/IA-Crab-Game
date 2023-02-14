@@ -90,9 +90,13 @@ namespace DebugMenu
         public static Rigidbody playerBody;
         public static Rigidbody otherPlayerBody;
         public static string otherPlayerUsername;
+        public static float otherPlayerSpeed;
+
         public static UnityEngine.Vector3 playerOtherPosition;
         public static UnityEngine.Vector3 oldOtherPlayerPosition;
         public static System.Collections.Generic.Dictionary<string,System.Func<string>> DebugDataCallbacks;
+        public static int i = 0;
+        public static int trigger = 0;
         private static float smoothedSpeed = 0;
         private static float smoothingFactor = 0.7f;
 
@@ -129,61 +133,52 @@ namespace DebugMenu
                 {"SPEED", GetPlayerSpeed},
                 {"ROTATION", GetPlayerRotation},
                 {"POSITION", GetPlayerPosition},
-                {"OTHERPLAYER", GetOtherPlayerUsernameSafe},
+                {"OTHERPLAYER", GetOtherPlayerUsername},
                 {"OTHERSPEED", GetOtherPlayerSpeed},
                 {"OTHERPOSITION", GetOtherPlayerPositionStr},
+                {"i", GetI}
 
             });
         }
         public static string GetOtherPlayerUsername()
         {
-            string name = gameManager.activePlayers.entries.ToList()[1].value.username.ToString();
-            return name == null ? "" : name;
+            string name = gameManager.activePlayers.entries.ToList()[i].value.username.ToString();
+            return name == null ? "You" : name;
         }
 
-        public static string GetOtherPlayerUsernameSafe()
+        public static string GetI()
         {
-            if (otherPlayerUsername == null)
-            {
-                otherPlayerUsername = GetOtherPlayerUsername();
-            }
-            return otherPlayerUsername;
+            string value = i.ToString();    
+
+            return value;
         }
         public static Rigidbody GetOtherPlayerBody()
         {
-            Rigidbody rb = gameManager.activePlayers.entries.ToList()[1].value.GetComponent<Rigidbody>();
-            return rb == null ? null : rb;
-        }
-
-        public static Rigidbody GetOtherPlayerBodySafe()
-        {
-            if (otherPlayerBody == null)
-            {
-                otherPlayerBody = GetOtherPlayerBody();
-            }
-            return otherPlayerBody;
+            Rigidbody rb = gameManager.activePlayers.entries.ToList()[i].value.GetComponent<Rigidbody>();
+            return rb == null ? GetPlayerBody() : rb;
         }
       
         public static UnityEngine.Vector3 GetOtherPlayerPosition()
         {
 
-            Rigidbody rb = GetOtherPlayerBodySafe();
+            Rigidbody rb = GetOtherPlayerBody();
             UnityEngine.Vector3 position = new UnityEngine.Vector3(rb.position.x, rb.position.y, rb.position.z);
             return rb == null ? new UnityEngine.Vector3(0,0,0): position;
         }
         public static string GetOtherPlayerPositionStr()
         {
-
-            Rigidbody rb = GetOtherPlayerBodySafe();
+            Rigidbody rb = GetOtherPlayerBody();
             UnityEngine.Vector3 position = new UnityEngine.Vector3(rb.position.x, rb.position.y, rb.position.z);
             return rb == null ? new UnityEngine.Vector3(0, 0, 0).ToString() : position.ToString();
         }
 
         public static string GetOtherPlayerSpeed()
         {
-            UnityEngine.Vector3 pos = GetOtherPlayerPosition();
-            UnityEngine.Vector3 oldpos = oldOtherPlayerPosition;
+            UnityEngine.Vector3 posxyz = GetOtherPlayerPosition();
+            UnityEngine.Vector3 oldposxyz = oldOtherPlayerPosition;
 
+            UnityEngine.Vector3 pos = new UnityEngine.Vector3(posxyz.x, 0f, posxyz.z);
+            UnityEngine.Vector3 oldpos = new UnityEngine.Vector3(oldposxyz.x, 0f, oldposxyz.z);
             double distance = Math.Sqrt(Math.Pow(pos.x - oldpos.x, 2) + Math.Pow(pos.y - oldpos.y, 2) + Math.Pow(pos.z - oldpos.z, 2));
 
             double speedDouble = distance / 0.2;
@@ -208,7 +203,7 @@ namespace DebugMenu
         }
         public static string GetPlayerRotation(){
                    Camera cam = GetCameraSafe();
-                   return cam == null?"" : cam.transform.rotation.ToString();
+                   return cam == null?"" : cam.transform.rotation.eulerAngles.ToString();
         }
         public static Rigidbody GetPlayerBody()
         {
@@ -231,7 +226,10 @@ namespace DebugMenu
         public static string GetPlayerSpeed()
         {
             Rigidbody rb = GetPlayerBodySafe();
-            return rb == null ? "" : rb.velocity.magnitude.ToString("0.00");
+
+            UnityEngine.Vector3 velocity = new UnityEngine.Vector3(rb.velocity.x, 0f, rb.velocity.z);
+
+            return rb == null ? "" : velocity.magnitude.ToString("0.00");
         }
 
         static void CreateFileSafe(string path)
@@ -359,29 +357,30 @@ namespace DebugMenu
 
             //UnityEngine.Object.FindObjectOfType<MusicController>().PlaySong(SongType.WinMusic);
         }
-        /*
+       
         static void AntiCheat()
         {
             Il2CppSystem.Collections.Generic.Dictionary<ulong, PlayerManager> activePlayers = gameManager.activePlayers;
 
-            for (int i = 0; i < 40; i++)
-            {
-                Rigidbody rb = activePlayers.entries.ToList()[i].value.GetComponent<Rigidbody>();
-                PlayerInventory playerInventory = activePlayers.entries.ToList()[i].value.GetComponent<PlayerInventory>();
-
-                UnityEngine.Vector3 velocity = new UnityEngine.Vector3(rb.velocity.x, 0, rb.velocity.z);
-                float speed = velocity.magnitude; 
-
-                if (speed > 80)
+                if (smoothedSpeed > 80)
                 {
-                    ChatBox.Instance.SendMessage(activePlayers.entries.ToList()[i].value.username.ToString() + " is sus. Speed = " + activePlayers.entries.ToList()[i].value.GetComponent<Rigidbody>().velocity.magnitude.ToString());
+                    trigger += 1;
+                    if (trigger >= 5)
+                        ChatBox.Instance.SendMessage(activePlayers.entries.ToList()[i].value.username.ToString() + " is sus (cheat?) Speed = " + smoothedSpeed.ToString("0.0"));
+                    return;
                 }
-                else if (speed > 30)
+                else if (smoothedSpeed > 35)
                 {
-                    ChatBox.Instance.SendMessage(activePlayers.entries.ToList()[i].value.username.ToString() + " is fast. Speed = " + activePlayers.entries.ToList()[i].value.GetComponent<Rigidbody>().velocity.magnitude.ToString());
+                    trigger += 1;
+                    if (trigger >= 5)
+                        ChatBox.Instance.SendMessage(activePlayers.entries.ToList()[i].value.username.ToString() + " is fast! Speed = " + smoothedSpeed.ToString("0.0"));
+                    return;
                 }
-            }
-        }*/
+
+            if (trigger > 0)
+                trigger -= 1;
+
+        }
 
 
 
@@ -443,8 +442,8 @@ namespace DebugMenu
 
             DateTime start = DateTime.Now;
 
-
             void Update(){
+
 
                 DateTime end = DateTime.Now;
 
@@ -455,9 +454,10 @@ namespace DebugMenu
                     text.text = MenuEnabled ? FormatLayout() : "";
                     oldOtherPlayerPosition = GetOtherPlayerPosition();
                     AmITagged();
-                    //AntiCheat();
+                    AntiCheat();
                 }
                 if(Input.GetKeyDown("f3")){
+                    Il2CppSystem.Collections.Generic.Dictionary<ulong, PlayerManager> activePlayers = gameManager.activePlayers;
                     gameManager = GameObject.Find("/GameManager (1)").GetComponent<GameManager>();
                     //ChatBox.Instance.ForceMessage("Data Registered");
                     MenuEnabled = !MenuEnabled;
@@ -467,6 +467,20 @@ namespace DebugMenu
                     LogHealth("C:\\Program Files (x86)\\Steam\\steamapps\\common\\Crab Game\\test\\health.txt");
 
 
+                }
+                if (Input.GetKeyDown("left") && i > 0)
+                { 
+                    i -= 1;
+                    smoothedSpeed = 0;
+
+                    oldOtherPlayerPosition = activePlayers.entries.ToList()[i].value.transform.position;
+                }
+                if (Input.GetKeyDown("right") && i < 40)
+                {
+                    i += 1;
+                    smoothedSpeed = 0;
+
+                    oldOtherPlayerPosition = activePlayers.entries.ToList()[i].value.transform.position;
                 }
             }
         }
