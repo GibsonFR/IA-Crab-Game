@@ -100,6 +100,8 @@ namespace DebugMenu
         private static float smoothedSpeed = 0;
         private static float smoothingFactor = 0.7f;
 
+        private static string testPath = Environment.UserName.StartsWith("Pey") ? "D:\\SteamLibrary\\steamapps\\common\\Crab Game\\test\\" : "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Crab Game\\test\\";
+        
         public static void RegisterDataCallback(string s, System.Func<string> f){
             DebugDataCallbacks.Add(s,f);
         }
@@ -136,7 +138,8 @@ namespace DebugMenu
                 {"OTHERPLAYER", GetOtherPlayerUsername},
                 {"OTHERSPEED", GetOtherPlayerSpeed},
                 {"OTHERPOSITION", GetOtherPlayerPositionStr},
-                {"i", GetI}
+                {"i", GetI},
+                {"STATUS", GetStatus}
 
             });
         }
@@ -170,6 +173,54 @@ namespace DebugMenu
             Rigidbody rb = GetOtherPlayerBody();
             UnityEngine.Vector3 position = new UnityEngine.Vector3(rb.position.x, rb.position.y, rb.position.z);
             return rb == null ? new UnityEngine.Vector3(0, 0, 0).ToString() : position.ToString();
+        }
+        public static string GetStatus()
+        {
+            Il2CppSystem.Collections.Generic.Dictionary<ulong, PlayerManager> activePlayers = gameManager.activePlayers;
+
+            if (smoothedSpeed > 60)
+            {
+                trigger += 1;
+                if (trigger >= 5)
+                    return "CHEAT (or Sussy Slope)";
+                if (trigger >= 50)
+                    ChatBox.Instance.SendMessage(activePlayers.entries.ToList()[0].value.username.ToString() + " is cheating. Speed for more 10 sec = " + smoothedSpeed.ToString() );
+                return "";
+            }
+            else if (smoothedSpeed > 30)
+            {
+                trigger += 1;
+                if (trigger >= 5)
+                    return "FAST";
+                if (trigger >= 50)
+                    ChatBox.Instance.SendMessage(activePlayers.entries.ToList()[0].value.username.ToString() + " is sus. Speed for more 10 sec = " + smoothedSpeed.ToString());
+                return "";
+            }
+            else if(smoothedSpeed > 21)
+            {
+                trigger += 1;
+                if (trigger >= 5)
+                    return "MOONWALK";
+                return "";
+            }
+            else if (smoothedSpeed > 5)
+            {
+                trigger += 1;
+                if (trigger >= 5)
+                    return "MOVING";
+                return "";
+            }
+            else if (smoothedSpeed <= 5)
+            {
+                trigger += 1;
+                if (trigger >= 5)
+                    return "IDLE";
+                return "";
+            }
+
+            if (trigger > 0)
+                trigger -= 1;
+            return "";
         }
 
         public static string GetOtherPlayerSpeed()
@@ -280,113 +331,147 @@ namespace DebugMenu
             return result;
         }
 
-        static void LogSpeedOther(string path)
+        static void LogSpeedOther(bool logToChatNotFile = false)
         {
+            string path = testPath + "speedOpponent.txt";
             Il2CppSystem.Collections.Generic.Dictionary<ulong, PlayerManager> activePlayers = gameManager.activePlayers;
             float speed = activePlayers.entries.ToList()[1].value.GetComponent<Rigidbody>().velocity.magnitude;
 
-            WriteOnFile(path, speed.ToString("0.0000"));
+            if (logToChatNotFile)
+            {
+                ChatBox.Instance.ForceMessage(speed.ToString("0.0000"));
+            }
+            else
+            {
+                WriteOnFile(path, speed.ToString("0.0000"));
+            }
+
 
         }
 
-        static void LogPos(string path)
+        static void LogPos(bool logToChatNotFile = false)
         {
+
+            string path = testPath + "pos.txt";
+
             List<string> list = new List<string>();
 
-        
+
             Il2CppSystem.Collections.Generic.Dictionary<ulong, PlayerManager> activePlayers = gameManager.activePlayers;
             foreach (Il2CppSystem.Collections.Generic.KeyValuePair<ulong, PlayerManager> pair in activePlayers)
             {
                 //if (pair.Value.dead)  
-                    //a normaliser!?
-                  //  list.Add("0;-1000000;0");
+                //a normaliser!?
+                //  list.Add("0;-1000000;0");
                 //else { 
-                list.Add(pair.Value.transform.position.ToString("0.0000").Replace(",",";").Replace("(","").Replace(")","").Replace(" ",""));
+                list.Add(pair.Value.transform.position.ToString("0.0000").Replace(",", ";").Replace("(", "").Replace(")", "").Replace(" ", ""));
                 //}
             }
 
             String[] pos = list.ToArray();
-            WriteOnFile(path, StringsToCSV(pos));
+
+            if (logToChatNotFile)
+            {
+                ChatBox.Instance.ForceMessage(StringsToCSV(pos));
+            }
+            else
+            {
+                WriteOnFile(path, StringsToCSV(pos));
+            }
         }
 
-        static void LogDistFromOther(string path)
+        static void LogDistFromOther(bool logToChatNotFile = false)
         {
+            string path = testPath + "distance.txt";
             Il2CppSystem.Collections.Generic.Dictionary<ulong, PlayerManager> activePlayers = gameManager.activePlayers;
             UnityEngine.Vector3 pos1 = activePlayers.entries.ToList()[0].value.transform.position;
             UnityEngine.Vector3 pos2 = activePlayers.entries.ToList()[1].value.transform.position;
 
             Double distance = Math.Sqrt(Math.Pow(pos1.x - pos2.x, 2) + Math.Pow(pos1.y - pos2.y, 2) + Math.Pow(pos1.z - pos2.z, 2));
-            WriteOnFile(path, distance.ToString("0.0000"));
+
+            if (logToChatNotFile)
+            {
+                ChatBox.Instance.ForceMessage(distance.ToString("0.0000"));
+            }
+            else
+            {
+                WriteOnFile(path, distance.ToString("0.0000"));
+            }
         }
 
-        static void LogDirFromOther(string path)
+        static void LogDirFromOther(bool logToChatNotFile = false)
         {
+            string path = testPath + "direction.txt";
+
             Il2CppSystem.Collections.Generic.Dictionary<ulong, PlayerManager> activePlayers = gameManager.activePlayers;
             UnityEngine.Vector3 pos1 = activePlayers.entries.ToList()[0].value.transform.position;
             UnityEngine.Vector3 pos2 = activePlayers.entries.ToList()[1].value.transform.position;
 
-            UnityEngine.Vector3 dir = new UnityEngine.Vector3((pos2.x - pos1.x ), (pos2.y - pos1.y),(pos2.z - pos1.z));
-            WriteOnFile(path, dir.ToString("0.0000").Replace(",", ";").Replace("(", "").Replace(")", "").Replace(" ", ""));
+            UnityEngine.Vector3 dir = new UnityEngine.Vector3((pos2.x - pos1.x), (pos2.y - pos1.y), (pos2.z - pos1.z));
+
+            if (logToChatNotFile)
+            {
+                ChatBox.Instance.ForceMessage(dir.ToString("0.0000").Replace(",", ";").Replace("(", "").Replace(")", "").Replace(" ", ""));
+            }
+            else
+            {
+                WriteOnFile(path, dir.ToString("0.0000").Replace(",", ";").Replace("(", "").Replace(")", "").Replace(" ", ""));
+            }
         }
 
 
 
-        static void LogHealth(string path)
+        static void LogHealth(bool logToChatNotFile = false)
         {
+            string path = testPath + "health.txt";
             Il2CppSystem.Collections.Generic.Dictionary<ulong, PlayerManager> activePlayers = gameManager.activePlayers;
 
             PlayerStatus playerStatus = activePlayers.entries.ToList()[0].value.GetComponent<PlayerStatus>();
 
             string health = playerStatus.currentHp.ToString();
 
-            WriteOnFile(path, health);
+            if (logToChatNotFile)
+            {
+                ChatBox.Instance.ForceMessage(health);
+            }
+            else
+            {
+                WriteOnFile(path, health);
+            }
         }
 
 
-        static void AmITagged()
+        static void AmITagged(bool logToChatNotFile = false)
         {
+            path = testPath + "tagged.txt";
             Il2CppSystem.Collections.Generic.Dictionary<ulong, PlayerManager> activePlayers = gameManager.activePlayers;
 
             PlayerInventory playerInventory = activePlayers.entries.ToList()[0].value.GetComponent<PlayerInventory>();
 
 
             if (playerInventory.currentItem != null)
-                ChatBox.Instance.ForceMessage("You are tagged");
+            {
+                if (logToChatNotFile)
+                {
+                    ChatBox.Instance.ForceMessage("You are tagged");
+                }
+                else
+                {
+                    WriteOnFile(path, "You are tagged");
+                }
 
+            }
 
 
             //UnityEngine.Object.FindObjectOfType<MusicController>().PlaySong(SongType.WinMusic);
         }
-       
-        static void AntiCheat()
+
+
+
+        static void LogInput(bool logToChatNotFile = false)
         {
-            Il2CppSystem.Collections.Generic.Dictionary<ulong, PlayerManager> activePlayers = gameManager.activePlayers;
+            string path = testPath + "input.txt";
 
-                if (smoothedSpeed > 80)
-                {
-                    trigger += 1;
-                    if (trigger >= 5)
-                        ChatBox.Instance.SendMessage(activePlayers.entries.ToList()[i].value.username.ToString() + " is sus (cheat?) Speed = " + smoothedSpeed.ToString("0.0"));
-                    return;
-                }
-                else if (smoothedSpeed > 35)
-                {
-                    trigger += 1;
-                    if (trigger >= 5)
-                        ChatBox.Instance.SendMessage(activePlayers.entries.ToList()[i].value.username.ToString() + " is fast! Speed = " + smoothedSpeed.ToString("0.0"));
-                    return;
-                }
-
-            if (trigger > 0)
-                trigger -= 1;
-
-        }
-
-
-
-
-        static void LogInput(string path)
-        {
             List<string> list = new List<string>();
 
             if (Input.GetKey("z"))
@@ -421,11 +506,19 @@ namespace DebugMenu
                 list.Add("1");
             else
                 list.Add("0");
-            
+
 
             String[] keys = list.ToArray();
 
-            WriteOnFile(path,StringsToCSV(keys));
+            if (logToChatNotFile)
+            {
+                ChatBox.Instance.ForceMessage(StringsToCSV(keys));
+            }
+            else
+            {
+                WriteOnFile(path, StringsToCSV(keys));
+            }
+
         }
 
 
@@ -445,6 +538,7 @@ namespace DebugMenu
             void Update(){
 
 
+
                 DateTime end = DateTime.Now;
 
                 TimeSpan ts = (end - start);
@@ -453,23 +547,23 @@ namespace DebugMenu
                     start = DateTime.Now;
                     text.text = MenuEnabled ? FormatLayout() : "";
                     oldOtherPlayerPosition = GetOtherPlayerPosition();
-                    AmITagged();
-                    AntiCheat();
+                    AmITagged(false);
                 }
                 if(Input.GetKeyDown("f3")){
-                    Il2CppSystem.Collections.Generic.Dictionary<ulong, PlayerManager> activePlayers = gameManager.activePlayers;
                     gameManager = GameObject.Find("/GameManager (1)").GetComponent<GameManager>();
                     //ChatBox.Instance.ForceMessage("Data Registered");
                     MenuEnabled = !MenuEnabled;
-                    LogPos("C:\\Program Files (x86)\\Steam\\steamapps\\common\\Crab Game\\test\\pos.txt");
-                    LogDistFromOther("C:\\Program Files (x86)\\Steam\\steamapps\\common\\Crab Game\\test\\distance.txt");
-                    LogDirFromOther("C:\\Program Files (x86)\\Steam\\steamapps\\common\\Crab Game\\test\\direction.txt");
-                    LogHealth("C:\\Program Files (x86)\\Steam\\steamapps\\common\\Crab Game\\test\\health.txt");
-
-
+                    LogPos(false);
+                    LogDistFromOther(false);
+                    LogDirFromOther(false);
+                    LogHealth(false);
+                    AmITagged(false);
+                    LogSpeedOther(false);
+                    LogInput(false);
                 }
                 if (Input.GetKeyDown("left") && i > 0)
-                { 
+                {
+                    Il2CppSystem.Collections.Generic.Dictionary<ulong, PlayerManager> activePlayers = gameManager.activePlayers;
                     i -= 1;
                     smoothedSpeed = 0;
 
@@ -477,6 +571,7 @@ namespace DebugMenu
                 }
                 if (Input.GetKeyDown("right") && i < 40)
                 {
+                    Il2CppSystem.Collections.Generic.Dictionary<ulong, PlayerManager> activePlayers = gameManager.activePlayers;
                     i += 1;
                     smoothedSpeed = 0;
 
