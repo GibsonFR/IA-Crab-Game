@@ -78,7 +78,7 @@ namespace DebugMenu
         private static Il2CppSystem.Collections.Generic.Dictionary<ulong, PlayerManager> activePlayers = null;
         private static string layout;
         private static string path;
-
+        
         /*
         private static Rigidbody otherPlayerBody;
         private static string otherPlayerUsername;
@@ -190,7 +190,7 @@ namespace DebugMenu
             foreach (System.Collections.Generic.KeyValuePair<string, System.Collections.Generic.List<object>> pair in DebugDataCallbacks)
             {
                 int? functionArgument = (int?)pair.Value[1];
-
+                
                 if (functionArgument.HasValue)
                 {
                     formatted = formatted.Replace("[" + pair.Key + "]", (pair.Value[0] as Func<int, string>)((int)pair.Value[1]));
@@ -566,7 +566,7 @@ namespace DebugMenu
             if (pos1.HasValue && pos2.HasValue)
             {
                 dir = new((pos2.Value.x - pos2.Value.x), (pos2.Value.y - pos1.Value.y), (pos2.Value.z - pos1.Value.z));
-
+                
                 dir.Value.Normalize();
 
                 logString = dir.Value.ToString(customPrecisionFormat);
