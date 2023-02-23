@@ -68,400 +68,136 @@ using System;
 using System.Text;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
+using CodeStage.AntiCheat.ObscuredTypes;
+using Il2CppSystem.IO;
+using File = System.IO.File;
+using FileStream = System.IO.FileStream;
+using System.Xml.Linq;
+using TMPro;
 
 namespace DebugMenu
 {
     [BepInPlugin(PluginInfo.PLUGIN_GUID, PluginInfo.PLUGIN_NAME, PluginInfo.PLUGIN_VERSION)]
     public class Plugin : BasePlugin
     {
-
         private static Il2CppSystem.Collections.Generic.Dictionary<ulong, PlayerManager> activePlayers = null;
+        public static TMP_InputField name;
+        private static string logData;
         private static string layout;
-        private static string path;
-        
-        /*
-        private static Rigidbody otherPlayerBody;
-        private static string otherPlayerUsername;
-        private static float otherPlayerSpeed;
-        */
+        private static string path2;
+        private static string filename;
+        static GameManager gameManager;
 
-        private static Vector3? oldOtherPlayerPosition;
+        private static System.Collections.Generic.Dictionary<string, System.Func<string>> DebugDataCallbacks;
 
-        private static System.Collections.Generic.Dictionary<string, System.Collections.Generic.List<object>> DebugDataCallbacks;
-
-        private static int trigger = 0;
-        private static float smoothedSpeed = 0;
-        private static readonly float smoothingFactor = 0.7f;
-
-        private static readonly string customPrecisionFormat = "F4";
-
-        // je met 0 dedans à priori,
-        // mais in fine on fera une recherche dans la liste des activePlayers en début de partie pour trouver celui qui a le bon identifiant,
-        // et on prendra son index dans la liste à chaque partie 1 fois
-        private static int localPlayerIndexInList = 0;
-        // pareil qu'au dessus mais avec index à 1 à priori
-        private static int otherPlayerIndexInList = 1;
-
-        private static readonly int selectedIndex = 1;
+        private static readonly string customPrecisionFormat = "F2";
 
         private static bool menuEnabled = false;
+        private static DateTime startGame;
 
-        private static readonly string testPath = Environment.UserName.StartsWith("Pey") ? "D:\\SteamLibrary\\steamapps\\common\\Crab Game\\test\\" : "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Crab Game\\test\\";
 
+        private static KeyCode keyForward = (KeyCode)InputManager.forward;
+        private static KeyCode keyLeft = (KeyCode)InputManager.left;
+        private static KeyCode keyRight = (KeyCode)InputManager.right;
+        private static KeyCode keyBackwards = (KeyCode)InputManager.backwards;
 
-        public static void CheckFileExists()
-        {
-            if (!File.Exists(path))
-            {
-                File.WriteAllText(path, "Speed: [SPEED] u/s\tRotation: [ROTATION]\tPosition: [POSITION]\n" +
-                    "________________________________________________________________________________\n" +
-                    "Speed: [OTHERSPEED] u/s\tRotation: [OTHERROTATION]\tPosition: [OTHERPOSITION]\n" +
-                    "[OTHERPLAYERNAME]\t [SELECTEDINDEX]\n" +
-                    "Status: [STATUS]", Encoding.UTF8);
-            }
-        }
+        private static KeyCode keyJump = (KeyCode)InputManager.jump;
+        private static KeyCode keyRun = (KeyCode)InputManager.sprint;
+        private static KeyCode keyCrouch = (KeyCode)InputManager.crouch;
 
-        public static void LoadLayout()
-        {
-            layout = File.ReadAllText(path, Encoding.UTF8);
-        }
+        private static readonly string testPath = "Crabi\\";
 
         public override void Load()
         {
             ClassInjector.RegisterTypeInIl2Cpp<DebugMenu>();
-            DebugDataCallbacks = new System.Collections.Generic.Dictionary<string, System.Collections.Generic.List<object>>();
+            DebugDataCallbacks = new System.Collections.Generic.Dictionary<string, System.Func<string>>();
             // Plugin startup logic
             Log.LogInfo($"Plugin {PluginInfo.PLUGIN_GUID} is loaded!");
-            path = Directory.GetParent(Application.dataPath) + "\\DebugLayout.txt";
+            path2 = System.IO.Directory.GetParent(Application.dataPath) + "\\DebugLayout.txt";
             Harmony.CreateAndPatchAll(typeof(Plugin));
             CheckFileExists();
             LoadLayout();
             RegisterDefaultCallbacks();
+            // If directory does not exist, create it
+            if (!System.IO.Directory.Exists("Crabi"))
+            {
+                System.IO.Directory.CreateDirectory("Crabi");
+            }
         }
 
-        public static void RegisterDataCallback(string s, System.Collections.Generic.List<object> f)
+        private static void CheckFileExists()
+        {
+            if (!File.Exists(path2))
+            {
+                File.WriteAllText(path2,
+                    "Player: [PLAYERNAME]\tSpeed: [SPEED] u/s\tRotation: [ROTATION]\tPosition: [POSITION]\n", Encoding.UTF8);
+            }
+        }
+
+        private static void LoadLayout()
+        {
+            layout = File.ReadAllText(path2, Encoding.UTF8);
+        }
+
+        private static void RegisterDataCallback(string s, System.Func<string> f)
         {
             DebugDataCallbacks.Add(s, f);
         }
 
-        public static void RegisterDataCallbacks(System.Collections.Generic.Dictionary<string, System.Collections.Generic.List<object>> dict)
+        private static void RegisterDataCallbacks(System.Collections.Generic.Dictionary<string, System.Func<string>> dict)
         {
-            foreach (System.Collections.Generic.KeyValuePair<string, System.Collections.Generic.List<object>> pair in dict)
+            foreach (System.Collections.Generic.KeyValuePair<string, System.Func<string>> pair in dict)
             {
                 DebugDataCallbacks.Add(pair.Key, pair.Value);
             }
         }
 
-        public static void RegisterDefaultCallbacks()
+        private static void RegisterDefaultCallbacks()
         {
-            System.Collections.Generic.List<System.Collections.Generic.List<object>> listOfFuncsAndArgs = new()
-            {
-                new() { (object)GetPlayerSpeedAsString,          (object)localPlayerIndexInList },
-                new() { (object)GetPlayerRotationAsString,       (object)localPlayerIndexInList },
-                new() { (object)GetPlayerPositionAsString,       (object)localPlayerIndexInList },
-                new() { (object)GetPlayerUsernameAsString,       (object)otherPlayerIndexInList },
-                new() { (object)GetPlayerSpeedAsString,          (object)otherPlayerIndexInList },
-                new() { (object)GetPlayerPositionAsString,  (object)otherPlayerIndexInList },
-                new() { (object)GetPlayerRotationAsString,  (object)otherPlayerIndexInList },
-/*
-                new() { (object)GetSelectedIndexAsString,        (object)null },
-                new(){ (object)GetStatusAsString,                (object)null }
-*/
-            };
-
-            RegisterDataCallbacks(new System.Collections.Generic.Dictionary<string, System.Collections.Generic.List<object>>(){
-                {"SPEED",           listOfFuncsAndArgs[0]},
-                {"POSITION",        listOfFuncsAndArgs[1]},
-                {"ROTATION",        listOfFuncsAndArgs[2]},
-                {"OTHERPLAYERNAME", listOfFuncsAndArgs[3]},
-                {"OTHERSPEED",      listOfFuncsAndArgs[4]},
-                {"OTHERPOSITION",   listOfFuncsAndArgs[5]},
-                {"OTHERROTATION",   listOfFuncsAndArgs[6]},
-/*
-                {"SELECTEDINDEX",   listOfFuncsAndArgs[7]},
-                {"STATUS",          listOfFuncsAndArgs[8]},
-*/
+            RegisterDataCallbacks(new System.Collections.Generic.Dictionary<string, System.Func<string>>(){
+                {"SPEED",      GetPlayerSpeedAsString},
+                {"POSITION",   GetPlayerRotationAsString},
+                {"ROTATION",   GetPlayerPositionAsString},
+                {"PLAYERNAME", GetPlayerUsernameAsString}
             });
         }
 
-        public static string FormatLayout()
+        private static string FormatLayout()
         {
             string formatted = layout;
-            foreach (System.Collections.Generic.KeyValuePair<string, System.Collections.Generic.List<object>> pair in DebugDataCallbacks)
+
+            foreach (System.Collections.Generic.KeyValuePair<string, System.Func<string>> pair in DebugDataCallbacks)
             {
-                int? functionArgument = (int?)pair.Value[1];
-                
-                if (functionArgument.HasValue)
-                {
-                    formatted = formatted.Replace("[" + pair.Key + "]", (pair.Value[0] as Func<int, string>)((int)pair.Value[1]));
-                }
-                else
-                {
-                    formatted = formatted.Replace("[" + pair.Key + "]", (pair.Value[0] as Func<string>)());
-                }
+                formatted = formatted.Replace("[" + pair.Key + "]", pair.Value());
             }
+
             return formatted;
         }
 
-        public static string GetGameModeId()
-        {
-            return UnityEngine.Object.FindObjectOfType<LobbyManager>().gameMode.id.ToString();
-        }
-        public static string GetMapId()
-        {
-            return UnityEngine.Object.FindObjectOfType<LobbyManager>().map.id.ToString();
-        }
-        public static string GetCurrentGameTimer()
-        {
-            int seconds = UnityEngine.Object.FindObjectOfType<TimerUI>().field_Private_TimeSpan_0.Seconds;
-            int minutes = UnityEngine.Object.FindObjectOfType<TimerUI>().field_Private_TimeSpan_0.Minutes;
-
-            return (seconds + 1 + minutes * 60).ToString();
-        }
-
-
-        public static string GetPlayerUsernameAsString(int playerIndexInList)
-        {
-            string name = "";
-            PlayerManager activePlayer = activePlayers.entries.ToList()[playerIndexInList].value;
-
-            if (activePlayer != null)
-                name = activePlayer.username.ToString();
-
-            return activePlayer == null ? "Them" : name;
-        }
-
-        public static string GetSelectedIndexAsString()
-        {
-            string value = selectedIndex.ToString();
-
-            return value;
-        }
-        /*
-
-        public static Rigidbody GetOtherPlayerBody()
-        {
-            return activePlayers.entries.ToList()[1]?.value.GetComponent<Rigidbody>();
-        }
-
-        public static Vector3? GetOtherPlayerPosition(int otherPlayerIndexInList = 1)
-        {
-            return activePlayers.entries.ToList()[otherPlayerIndexInList]?.value.gameObject.transform.position;
-        }
-
-        public static string GetOtherPlayerPositionAsString()
-        {
-            Vector3? otherPlayerPosition = GetOtherPlayerPosition();
-            return otherPlayerPosition.HasValue ? "" : "(" + otherPlayerPosition.Value.x.ToString(customPrecisionFormat) + ";" + otherPlayerPosition.Value.y.ToString(customPrecisionFormat) + ";" + otherPlayerPosition.Value.z.ToString(customPrecisionFormat) + ")";
-        }
-
-        public static string GetOtherPlayerRotationAsString(int otherPlayerIndexInList)
-        {
-            Vector3? otherPlayerRotation = GetPlayerRotation(otherPlayerIndexInList);
-            return otherPlayerRotation.HasValue ? "" : "(" + otherPlayerRotation.Value.x.ToString(customPrecisionFormat) + ";" + otherPlayerRotation.Value.y.ToString(customPrecisionFormat) + ";" + otherPlayerRotation.Value.z.ToString(customPrecisionFormat) + ")";
-
-        }*/
-
-
-        public static string GetStatusAsString()
-        {
-            string mode = GetGameModeId();
-
-            if (smoothedSpeed > 45 && mode != "10")
-            {
-                trigger += 1;
-                if (trigger >= 5 && trigger < 40)
-                    return "CHEAT (or Sussy Slope)";
-                if (trigger >= 40)
-                    ChatBox.Instance.SendMessage(activePlayers.entries.ToList()[1].value.username.ToString() + " is cheating. Speed for more 8 sec = " + smoothedSpeed.ToString(customPrecisionFormat));
-                trigger = 0;
-                return "";
-            }
-            else if (smoothedSpeed > 30 && mode != "10")
-            {
-                trigger += 1;
-                if (trigger >= 5 && trigger < 40)
-                    return "FAST";
-                if (trigger >= 40)
-                    ChatBox.Instance.SendMessage(activePlayers.entries.ToList()[1].value.username.ToString() + " is sus. Speed for more 8 sec = " + smoothedSpeed.ToString(customPrecisionFormat));
-                trigger = 0;
-                return "";
-            }
-            else if (smoothedSpeed > 21)
-            {
-                if (trigger < 5)
-                    trigger += 1;
-                if (trigger > 5)
-                    trigger -= 1;
-                if (trigger >= 5)
-                    return "MOONWALK";
-                return "";
-            }
-            else if (smoothedSpeed > 5)
-            {
-                if (trigger < 5)
-                    trigger += 1;
-                if (trigger > 5)
-                    trigger -= 1;
-                if (trigger >= 5)
-                    return "MOVING";
-                return "";
-            }
-            else if (smoothedSpeed <= 5)
-            {
-                if (trigger < 5)
-                    trigger += 1;
-                if (trigger > 5)
-                    trigger -= 1;
-                if (trigger >= 5)
-                    return "IDLE";
-                return "";
-            }
-
-            if (trigger > 0)
-                trigger += -1;
-            return "";
-        }
-
-
-        public static double? DEBUG_BOBI_GetPlayerSpeed(int playerIndexInList)
-        {
-            //Rigidbody rb = GetOtherPlayerBody();
-
-
-            //Vector3 velocity = new(); GetOtherPlayerBody()?.get_velocity_Injected(out velocity); return velocity.magnitude;
-            return GetPlayerBody(playerIndexInList)?.velocity.magnitude;
-        }
-
-        public static string DEBUG_BOBI_GetPlayerSpeedAsString(int playerIndexInList)
-        {
-            double? speed = DEBUG_BOBI_GetPlayerSpeed(playerIndexInList);
-            return speed.HasValue ? "" : speed.Value.ToString(customPrecisionFormat);
-        }
-
-        /*
-        public static string GetOtherPlayerSpeedAsString()
-        {
-            double speedDouble, distance;
-            Vector3 pos, oldpos;
-            Vector3? posxyz = GetOtherPlayerPosition();
-            Vector3? oldposxyz = oldOtherPlayerPosition;
-
-            if (posxyz.HasValue && oldposxyz.HasValue)
-            {
-                pos = new Vector3(posxyz.Value.x, 0f, posxyz.Value.z);
-                oldpos = new Vector3(oldposxyz.Value.x, 0f, oldposxyz.Value.z);
-                distance = Math.Sqrt(Math.Pow(pos.x - oldpos.x, 2) + Math.Pow(pos.y - oldpos.y, 2) + Math.Pow(pos.z - oldpos.z, 2));
-                speedDouble = distance / 0.2;
-                smoothedSpeed = (float)((smoothedSpeed * smoothingFactor + (1 - smoothingFactor) * speedDouble) * 0.99);
-                string speed = smoothedSpeed.ToString("0.0");
-                return speed;
-            }
-
-            return "";
-        }
-        */
-
-        public static Camera GetCamera()
-        {
-            return UnityEngine.Object.FindObjectOfType<Camera>();
-        }
-
-        public static Vector3? GetPlayerRotation(int playerIndexInList)
-        {
-            if (playerIndexInList == localPlayerIndexInList)
-            {
-                return GetCamera()?.transform.rotation.eulerAngles;
-            }
-
-            return activePlayers.entries.ToList()[playerIndexInList]?.value.head.gameObject.transform.eulerAngles;
-
-        }
-
-        public static string GetPlayerRotationAsString(int playerIndexInList)
-        {
-            if (playerIndexInList == localPlayerIndexInList)
-            {
-                Camera cam = GetCamera();
-                return cam == null ? "" : cam.transform.rotation.eulerAngles.ToString(customPrecisionFormat);
-            }
-
-            return activePlayers.entries.ToList()[playerIndexInList]?.value.head.gameObject.transform.eulerAngles.ToString(customPrecisionFormat);
-
-        }
-
-        public static Rigidbody GetPlayerBody(int playerIndexInList)
-        {
-            if (playerIndexInList == localPlayerIndexInList)
-            {
-                return GameObject.Find("/Player")?.GetComponent<Rigidbody>();
-            }
-            return activePlayers.entries.ToList()[playerIndexInList]?.value.GetComponent<Rigidbody>();
-        }
-
-        public static Vector3? GetPlayerPosition(int playerIndexInList)
-        {
-            return GetPlayerBody(playerIndexInList)?.transform.position;
-        }
-
-        public static string GetPlayerPositionAsString(int playerIndexInList)
-        {
-            Vector3? playerPos = GetPlayerPosition(playerIndexInList);
-
-            return playerPos.HasValue ? "" : playerPos.Value.ToString(customPrecisionFormat);
-
-        }
-        public static double? GetPlayerSpeed(int playerIndexInList)
-        {
-            return GetPlayerBody(playerIndexInList)?.velocity.magnitude;
-        }
-
-        public static string GetPlayerSpeedAsString(int playerIndexInList)
-        {
-            double? speed = GetPlayerSpeed(playerIndexInList);
-
-            return speed.HasValue ? "" : speed.Value.ToString(customPrecisionFormat);
-        }
-
-
-        static string FormatVectorString(string originalString)
+        private static string DefaultFormatCsv(string originalString)
         {
             return originalString.Replace(",", ";").Replace("(", "").Replace(")", "").Replace(" ", "");
         }
 
-        /*
-        static void CreateFileSafe(string path)
+        private static void ClearFileContent(string path)
         {
             if (File.Exists(path))
-            {
+                return;
 
+            FileStream fileStream = File.Open(path, System.IO.FileMode.Open);
 
-                FileStream fileStream = File.Open(path, FileMode.Open);
-
-                fileStream.SetLength(0);
-                fileStream.Close();
-
-            }
-            else
-            {
-                File.Create(path);
-            }
+            fileStream.SetLength(0);
+            fileStream.Close();
         }
-        */
 
-        static void WriteOnFile(string path, string line)
+        private static void WriteOnFile(string path, string line)
         {
-            using StreamWriter file = new(path, append: true);
+            using System.IO.StreamWriter file = new(path, append: true);
             file.WriteLine(line);
         }
 
-        /*        static void WriteOnFileSafe(string path, string line)
-                {
-                    CreateFileSafe(path);
-                    WriteOnFile(path, line);
-                }
-        */
-        static string StringsToCSV(string[] array)
+        private static string StringsArrayToCsvLine(string[] array)
         {
             string result = "";
 
@@ -469,9 +205,12 @@ namespace DebugMenu
             {
                 StringBuilder sb = new();
 
+                string formattedString;
+
                 foreach (string s in array)
                 {
-                    sb.Append(s).Append(",");
+                    formattedString = DefaultFormatCsv(s);
+                    sb.Append(formattedString).Append(",");
                 }
 
                 result = sb.Remove(sb.Length - 1, 1).ToString();
@@ -480,211 +219,375 @@ namespace DebugMenu
             return result;
         }
 
-        static void LogSpeed(int playerIndexInList, bool logToChatNotFile = false)
+
+        public static string GetGameStateAsString()
         {
-            string path = testPath + "speedOpponent.txt";
-
-            string speedString = GetPlayerSpeedAsString(playerIndexInList);
-
-            if (logToChatNotFile)
-            {
-                ChatBox.Instance.ForceMessage(speedString);
-            }
-            else
-            {
-                WriteOnFile(path, speedString);
-            }
+            return UnityEngine.Object.FindObjectOfType<GameManager>().gameMode.modeState.ToString();
         }
 
-        static void LogPos(int playerIndexInList, bool logToChatNotFile = false)
+        //A voir avec bobi
+        public static string GetGameNameAsString()
         {
-            string path = testPath + "pos.txt";
-
-            string posString = GetPlayerPositionAsString(playerIndexInList);
-
-            if (logToChatNotFile)
-            {
-                ChatBox.Instance.ForceMessage(posString);
-            }
-            else
-            {
-                WriteOnFile(path, posString);
-            }
+            //UnityEngine.Object.FindObjectOfType<GameSettings>().UpdateServerName();
+            //UnityEngine.Object.FindObjectOfType<GameSettings>().name.ToString();
+            return UnityEngine.Object.FindObjectOfType<GameSettings>().serverNameField.ToString();
+        }
+        // A TESTER FORTEMENT
+        private static LobbyManager GetLobbyManager()
+        {
+            return LobbyManager.Instance;
         }
 
-        static void LogRotation(int playerIndexInList, bool logToChatNotFile = false)
+        private static GameObject GetPlayerObject()
         {
-            string path = testPath + "rotation.txt";
-
-            string rot = GetPlayerRotationAsString(playerIndexInList);
-
-            if (logToChatNotFile)
-            {
-                ChatBox.Instance.ForceMessage(rot);
-            }
-            else
-            {
-                WriteOnFile(path, rot);
-            }
+            GameObject playerObject = GameObject.Find("/Player");
+            return playerObject;
         }
 
-        static void LogDistFromOther(int playerIndexInList, int otherPlayerIndexInList, bool logToChatNotFile = false)
+        // A TESTER FORTEMENT
+        private static PlayerStatus GetPlayerStatus()
         {
-            string path = testPath + "distance.txt";
-
-            Vector3? pos1 = GetPlayerPosition(playerIndexInList);
-
-            Vector3? pos2 = GetPlayerPosition(otherPlayerIndexInList);
-
-            if (pos1.HasValue && pos2.HasValue)
-            {
-                Double distance = Math.Sqrt(Math.Pow(pos1.Value.x - pos2.Value.x, 2) + Math.Pow(pos1.Value.y - pos2.Value.y, 2) + Math.Pow(pos1.Value.z - pos2.Value.z, 2));
-                if (logToChatNotFile)
-                {
-                    ChatBox.Instance.ForceMessage(distance.ToString(customPrecisionFormat));
-                }
-                else
-                {
-                    WriteOnFile(path, distance.ToString(customPrecisionFormat));
-                }
-            }
-
+            return PlayerStatus.Instance;
         }
 
-        static void LogDirFromOther(int playerIndexInList, int otherPlayerIndexInList, bool logToChatNotFile = false)
+        // A TESTER FORTEMENT
+        private static PlayerInventory GetPlayerInventory()
         {
-            string path = testPath + "direction.txt";
-
-            Vector3? pos1 = GetPlayerPosition(playerIndexInList);
-
-            Vector3? pos2 = GetPlayerPosition(otherPlayerIndexInList);
-
-            Vector3? dir;
-
-            String logString = "";
-
-            if (pos1.HasValue && pos2.HasValue)
-            {
-                dir = new((pos2.Value.x - pos2.Value.x), (pos2.Value.y - pos1.Value.y), (pos2.Value.z - pos1.Value.z));
-                
-                dir.Value.Normalize();
-
-                logString = dir.Value.ToString(customPrecisionFormat);
-            }
-
-
-            if (logToChatNotFile)
-            {
-                ChatBox.Instance.ForceMessage(logString);
-            }
-            else
-            {
-                WriteOnFile(path, logString);
-            }
-
-
+            return PlayerInventory.Instance;
         }
 
-        static void LogHealth(int playerIndexInList, bool logToChatNotFile = false)
+        // A TESTER FORTEMENT
+        private static PlayerManager GetPlayerManager()
         {
-            string path = testPath + "health.txt";
+            return GetPlayerObject().GetComponent<PlayerManager>();
+        }
 
-            PlayerStatus playerStatus = activePlayers.entries.ToList()[playerIndexInList].value.GetComponent<PlayerStatus>();
+        // A TESTER FORTEMENT
+        private static Rigidbody GetPlayerRigidbody()
+        {
+            return GetPlayerObject()?.GetComponent<Rigidbody>();
+        }
 
-            string health = playerStatus.currentHp.ToString();
+        // A TESTER FORTEMENT
+        private static Camera GetCamera()
+        {
+            return UnityEngine.Object.FindObjectOfType<Camera>();
+        }
 
-            if (logToChatNotFile)
+        static string GetSHA256(string input)
+        {
+            // Convertir la chaîne de caractères en tableau de bytes
+            byte[] inputBytes = Encoding.UTF8.GetBytes(input);
+
+            // Calculer l'empreinte SHA-256 du tableau de bytes
+            byte[] hashBytes = SHA256.Create().ComputeHash(inputBytes);
+
+            // Convertir l'empreinte SHA-256 en chaîne de caractères hexadécimale
+            StringBuilder sb = new StringBuilder();
+            foreach (byte b in hashBytes)
             {
-                ChatBox.Instance.ForceMessage(health);
+                sb.Append(b.ToString("x2"));
             }
-            else
-            {
-                WriteOnFile(path, health);
-            }
+            return sb.ToString();
+        }
+    
+
+
+
+
+        // GetGameModeId est utile pour savoir si on est dans le lobby ?
+        private static int GetGameModeId()
+        {
+            return GetLobbyManager().gameMode.id;
         }
 
 
-        static void LogIsTagged(int playerIndexInList, bool logToChatNotFile = false)
+        // GetGameModeId est utile pour savoir si on est dans le lobby ?
+        private static string GetGameModeIdAsString()
         {
-            path = testPath + "tagged.txt";
+            return GetGameModeId().ToString();
+        }
 
-            PlayerInventory playerInventory = activePlayers.entries.ToList()[playerIndexInList].value.GetComponent<PlayerInventory>();
+        private static int GetMapId()
+        {
+            return GetLobbyManager().map.id;
+        }
 
+        private static string GetMapIdAsString()
+        {
+            return GetMapId().ToString();
+        }
 
-            if (playerInventory.currentItem != null)
-            {
-                if (logToChatNotFile)
-                {
-                    ChatBox.Instance.ForceMessage("You are tagged");
-                }
-                else
-                {
-                    WriteOnFile(path, "You are tagged");
-                }
-            }
+        private static string GetPlayerUsernameAsString()
+        {
+            PlayerManager localPlayer = GetPlayerManager();
+
+            return localPlayer == null ? "Player's name is unknown" : localPlayer.username.ToString();
         }
 
 
-        static void LogInputLocalPlayer(bool logToChatNotFile = false)
+
+        private static int GetCurrentGameTimer()
         {
-            string path = testPath + "input.txt";
+            int seconds = UnityEngine.Object.FindObjectOfType<TimerUI>().field_Private_TimeSpan_0.Seconds;
+            int minutes = UnityEngine.Object.FindObjectOfType<TimerUI>().field_Private_TimeSpan_0.Minutes;
+            int hours = UnityEngine.Object.FindObjectOfType<TimerUI>().field_Private_TimeSpan_0.Hours;
+            int days = UnityEngine.Object.FindObjectOfType<TimerUI>().field_Private_TimeSpan_0.Days;
 
-            System.Collections.Generic.List<string> list = new();
+            return (seconds + 1 + minutes * 60 + hours * 60 + days * 60);
+        }
+        
+        private static string GetTimeStamp()
+        {
 
-            if (Input.GetKey("z"))
-                list.Add("1");
-            else
-                list.Add("0");
-            if (Input.GetKey("q"))
-                list.Add("1");
-            else
-                list.Add("0");
-            if (Input.GetKey("s"))
-                list.Add("1");
-            else
-                list.Add("0");
-            if (Input.GetKey("d"))
-                list.Add("1");
-            else
-                list.Add("0");
-            if (Input.GetKeyDown("space"))
-                list.Add("1");
-            else
-                list.Add("0");
-            if (Input.GetKey("left shift"))
-                list.Add("1");
-            else
-                list.Add("0");
-            if (Input.GetKey("left ctrl"))
-                list.Add("1");
-            else
-                list.Add("0");
-            if (Input.GetMouseButtonDown(0))
-                list.Add("1");
-            else
-                list.Add("0");
+            int totalTime = UnityEngine.Object.FindObjectOfType<LobbyManager>().gameMode.modeTime;
+            int milliseconds = UnityEngine.Object.FindObjectOfType<TimerUI>().field_Private_TimeSpan_0.Milliseconds;
+            int seconds = UnityEngine.Object.FindObjectOfType<TimerUI>().field_Private_TimeSpan_0.Seconds;
+            int minutes = UnityEngine.Object.FindObjectOfType<TimerUI>().field_Private_TimeSpan_0.Minutes;
+            
 
-            String[] keys = list.ToArray();
+            return ((-1 * (seconds + milliseconds + minutes * 60)) + totalTime).ToString();
+        }
 
-            if (logToChatNotFile)
+
+
+        private static string GetCurrentGameTimerAsString()
+        {
+            return GetCurrentGameTimer().ToString();
+        }
+
+        private static Vector3? GetPlayerRotation()
+        {
+            return GetCamera()?.transform.rotation.eulerAngles;
+        }
+
+        private static string GetPlayerRotationAsString()
+        {
+            Vector3? rotation = GetPlayerRotation();
+
+            return !rotation.HasValue ? "ERROR" : rotation.Value.ToString(customPrecisionFormat);
+        }
+
+        private static Vector3? GetPlayerPosition()
+        {
+            return GetPlayerRigidbody()?.transform.position;
+        }
+
+        private static string GetPlayerPositionAsString()
+        {
+            Vector3? playerPos = GetPlayerPosition();
+
+            return !playerPos.HasValue ? "ERROR" : playerPos.Value.ToString(customPrecisionFormat);
+        }
+
+        private static float? GetPlayerSpeed()
+        {
+            return GetPlayerRigidbody()?.velocity.magnitude;
+        }
+
+        private static string GetPlayerSpeedAsString()
+        {
+            float? speed = GetPlayerSpeed();
+
+            return !speed.HasValue ? "ERROR" : speed.Value.ToString(customPrecisionFormat).Replace(",", ".");
+        }
+
+        private static ObscuredInt GetPlayerHealth()
+        {
+            return GetPlayerStatus().currentHp;
+        }
+
+        private static string GetPlayerHealthAsString()
+        {
+            return GetPlayerHealth().ToString();
+        }
+
+        private static bool GetPlayerIsTagged()
+        {
+            return GetPlayerInventory().currentItem != null;
+        }
+
+        private static string GetIsTaggedAsString()
+        {
+            return GetPlayerIsTagged() ? "1" : "0";
+        }
+
+        public static Rigidbody GetOtherPlayerBody()
+        {
+            Rigidbody rb = null;
+            gameManager = GameObject.Find("/GameManager (1)").GetComponent<GameManager>();
+            Il2CppSystem.Collections.Generic.Dictionary<ulong, PlayerManager>.Entry activePlayer = gameManager.activePlayers.entries.ToList()[1]; 
+            if (activePlayer != null)
+                rb = activePlayer.value.GetComponent<Rigidbody>();
+            return rb;
+        }
+        public static Vector3? GetOtherPlayerPosition()
+        {
+            UnityEngine.Vector3? position = null;
+            Rigidbody rb = GetOtherPlayerBody();
+
+            if (rb != null)
+                position = rb.transform.position;
+            return rb == null? null : position;
+        }
+        public static string GetOtherPlayerPositionAsString()
+        {
+            Vector3? otherPlayerPosition = GetOtherPlayerPosition();
+            return otherPlayerPosition == null? "" : otherPlayerPosition.ToString();
+        }
+        public static string GetOtherPlayerSpeedAsString()
+        {
+            Rigidbody rb = GetOtherPlayerBody();
+            return rb == null ? "" : rb.velocity.magnitude.ToString();
+        }
+        public static string GetOtherPlayerRotationAsString()
+        {
+            Rigidbody rb = GetOtherPlayerBody();
+            return rb == null ? "" : rb.gameObject.transform.rotation.eulerAngles.ToString();
+        }
+
+
+        private static bool[] GetInputArray()
+        {
+
+        bool[] keys = {
+                    Input.GetKey(keyForward),
+                    Input.GetKey(keyLeft),
+                    Input.GetKey(keyRight),
+                    Input.GetKey(keyBackwards),
+
+                    Input.GetKey(keyJump),
+                    Input.GetKey(keyRun),
+                    Input.GetKey(keyCrouch),
+
+                    Input.GetMouseButtonDown(0)
+                };
+
+            return keys;
+        }
+
+        private static string GetInputArrayAsString()
+        {
+            bool[] keys = GetInputArray();
+
+            String[] keysString =
             {
-                ChatBox.Instance.ForceMessage(StringsToCSV(keys));
-            }
-            else
-            {
-                WriteOnFile(path, StringsToCSV(keys));
-            }
+                keys[0] ? "1" : "0",
+                keys[1] ? "1" : "0",
+                keys[2] ? "1" : "0",
+                keys[3] ? "1" : "0",
 
+                keys[4] ? "1" : "0",
+                keys[5] ? "1" : "0",
+                keys[6] ? "1" : "0",
+
+                keys[7] ? "1" : "0"
+            };
+
+            return StringsArrayToCsvLine(keysString);
+        }
+
+        private static void LogPlayerSpeed()
+        {
+            string path = testPath + "speed.csv";
+
+            string speedString = GetPlayerSpeedAsString();
+
+            WriteOnFile(path, speedString);
+        }
+
+        private static void LogPlayerPosition()
+        {
+            string path = testPath + "pos.csv";
+
+            string posString = GetPlayerPositionAsString();
+
+            WriteOnFile(path, posString);
+        }
+
+        private static void LogPlayerRotation()
+        {
+            string path = testPath + "rotation.csv";
+
+            string playerRotation = GetPlayerRotationAsString();
+
+            WriteOnFile(path, playerRotation);
+        }
+
+        // A TESTER FORTEMENT
+        private static void LogPlayerHealth()
+        {
+            string path = testPath + "health.csv";
+
+            WriteOnFile(path, GetPlayerHealthAsString());
+        }
+
+        // A TESTER FORTEMENT
+        private static void LogPlayerIsTagged()
+        {
+            string path = testPath + "tagged.csv";
+            PlayerInventory playerInventory = GetPlayerInventory();
+            bool isTagged = playerInventory.currentItem != null;
+
+            WriteOnFile(path, isTagged ? "1" : "0");
+        }
+
+        // A TESTER FORTEMENT
+        private static void LogCurrentGameTimer()
+        {
+            string path = testPath + "timer.csv";
+            PlayerInventory playerInventory = GetPlayerInventory();
+            bool isTagged = playerInventory.currentItem != null;
+
+            WriteOnFile(path, GetCurrentGameTimerAsString());
+        }
+
+        // A TESTER FORTEMENT
+        private static void LogInputArray()
+        {
+            string path = testPath + "input.csv";
+
+            WriteOnFile(path, GetInputArrayAsString());
+        }
+
+        private static void LogAllData(string filename, DateTime start)
+        {
+            string path = testPath + filename + ".csv";
+
+            DateTime end = DateTime.Now;
+             
+            TimeSpan ts = (end - start);
+
+            int timestamp = ts.Milliseconds + ts.Seconds * 1000 + ts.Minutes * 1000 * 60;
+
+            string[] stringArray =
+            {
+                timestamp.ToString(),
+                GetPlayerPositionAsString(),
+                GetPlayerSpeedAsString(),
+                GetPlayerRotationAsString(),
+                GetPlayerHealthAsString(),
+                GetIsTaggedAsString(),
+                GetInputArrayAsString(),
+                GetCurrentGameTimerAsString(),     
+                GetOtherPlayerPositionAsString(),
+                GetOtherPlayerSpeedAsString(),
+                GetOtherPlayerRotationAsString()
+            };
+
+            WriteOnFile(path, StringsArrayToCsvLine(stringArray));
+            string logDataOld = logData;
+            logData = logDataOld + "\n" + StringsArrayToCsvLine(stringArray);
         }
 
         public class DebugMenu : MonoBehaviour
         {
             public Text text;
-
-            DateTime start = DateTime.Now;
-
-            void Update()
+            private DateTime start = DateTime.Now;
+            bool inGame = false;
+        private void Update()
             {
+
                 DateTime end = DateTime.Now;
 
                 TimeSpan ts = (end - start);
@@ -694,7 +597,7 @@ namespace DebugMenu
                 if (ts.TotalMilliseconds >= 200)
                 {
                     start = DateTime.Now;
-                    //oldOtherPlayerPosition = GetOtherPlayerPosition();
+
                 }
 
                 if (GameManager.Instance.isActiveAndEnabled)
@@ -702,51 +605,62 @@ namespace DebugMenu
                     if (Input.GetKeyDown("f3"))
                     {
                         menuEnabled = !menuEnabled;
-                        activePlayers = GameManager.Instance.activePlayers;
                     }
 
-                    // DANS LE CHAT
-                    if (Input.GetKeyDown("f4"))
+                    if (GetGameModeId() != 0 && GetPlayerObject() != null && GetGameStateAsString() == "Playing")
                     {
-                        LogPos(localPlayerIndexInList, true);
-                        LogDistFromOther(localPlayerIndexInList, otherPlayerIndexInList, true);
-                        LogDirFromOther(localPlayerIndexInList, otherPlayerIndexInList, true);
-                        LogHealth(localPlayerIndexInList, true);
-                        LogIsTagged(localPlayerIndexInList, true);
-                        LogSpeed(localPlayerIndexInList, true);
-                        LogRotation(localPlayerIndexInList, true);
+                        if (!inGame)
+                        {
+                            GameManager gameManager = GameObject.Find("/GameManager (1)").GetComponent<GameManager>();
+                            Il2CppSystem.Collections.Generic.Dictionary<ulong, PlayerManager> activePlayers = gameManager.activePlayers;
+                            string username0 = activePlayers.entries.ToList()[0].value.username.ToString();
+                            string username1 = activePlayers.entries.ToList()[1].value.username.ToString();
+                            startGame = DateTime.Now;
+                            long startGameTimeMilliseconds = new DateTimeOffset(startGame).ToUnixTimeMilliseconds();
+                            // il faut mettre ce if tout en haut dans le 1er if
+                            // le code dans ce if est éxécuté une seule fois
+                            string[] filenameArray =
+                            {
+                                username0,
+                                username1,
+                                startGameTimeMilliseconds.ToString(),
+                                GetMapIdAsString()
+                            };
 
-                        LogInputLocalPlayer(true);
+                            filename = StringsArrayToCsvLine(filenameArray);
+                            logData = "";
+
+                            // If directory does not exist, create it
+                            if (!System.IO.Directory.Exists("Crabi"))
+                            {
+                                System.IO.Directory.CreateDirectory("Crabi");
+                            }
+                            inGame = true;
+
+                        }
+                        LogAllData(filename, startGame);
+
                     }
-
-                    // DANS LE FILE
-                    if (Input.GetKeyDown("f5"))
+                    else
                     {
-                        LogPos(localPlayerIndexInList, false);
-                        LogDistFromOther(localPlayerIndexInList, otherPlayerIndexInList, false);
-                        LogDirFromOther(localPlayerIndexInList, otherPlayerIndexInList, false);
-                        LogHealth(localPlayerIndexInList, false);
-                        LogIsTagged(localPlayerIndexInList, false);
-                        LogSpeed(localPlayerIndexInList, false);
-                        LogRotation(localPlayerIndexInList, false);
-
-                        LogInputLocalPlayer(false);
+                        inGame = false;
                     }
+
 
                     /*
-                    if (Input.GetKeyDown("left") && selectedIndex > 1)
+                    // DANS LE FILE
+                    // CLICKE F4 INSTANT
+                    if (Input.GetKeyDown("f4"))
                     {
-                        selectedIndex -= 1;
-                        smoothedSpeed = 0;
-
-                        oldOtherPlayerPosition = activePlayers.entries.ToList()[selectedIndex].value.transform.position;
+                        LogAllData();
                     }
-                    if (Input.GetKeyDown("right") && selectedIndex < 40)
-                    {
-                        selectedIndex += 1;
-                        smoothedSpeed = 0;
 
-                        oldOtherPlayerPosition = activePlayers.entries.ToList()[selectedIndex].value.transform.position;
+
+                    // DANS LE FILE
+                    // PRESSE F5 CONSTANT
+                    else if (Input.GetKey("f5"))
+                    {
+                        LogAllData();
                     }
                     */
                 }
@@ -763,11 +677,7 @@ namespace DebugMenu
             text.raycastTarget = false;
             DebugMenu menu = menuObject.AddComponent<DebugMenu>();
             menu.text = text;
-            /*
-            Plugin.playerBody = null;
-            Plugin.otherPlayerBody = null;
-            Plugin.otherPlayerUsername = null;
-            */
+
             menuObject.transform.SetParent(__instance.transform);
             menuObject.transform.localPosition = new Vector3(menuObject.transform.localPosition.x, -menuObject.transform.localPosition.y, menuObject.transform.localPosition.z);
             RectTransform rt = menuObject.GetComponent<RectTransform>();
