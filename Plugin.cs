@@ -1,63 +1,14 @@
 ﻿global using GameSettings = MonoBehaviourPublicObjomaOblogaTMObseprUnique;
-global using SteamManager = MonoBehaviourPublicObInUIgaStCSBoStcuCSUnique;
 global using GameManager = MonoBehaviourPublicDi2UIObacspDi2UIObUnique;
-global using GameUI = MonoBehaviourPublicGaroloGaObInCacachGaUnique;
 global using ChatBox = MonoBehaviourPublicRaovTMinTemeColoonCoUnique;
-global using DamageVignette = MonoBehaviourPublicRadaSiSiSiUnique;
-global using PlayerMovement = MonoBehaviourPublicGaplfoGaTrorplTrRiBoUnique;
-global using ServerSend = MonoBehaviourPublicInInUnique;
-global using MapManager = MonoBehaviourPublicObInMamaLi1plMadeMaUnique;
-global using GameModeManager = MonoBehaviourPublicGadealGaLi1pralObInUnique;
-global using MapSize = Map.EnumNPublicSealedvasmmelaan5vUnique;
-global using BouncePlayer = MonoBehaviourPublicSicofoSimuupInSiboVeUnique;
-global using JumpPad = MonoBehaviourPublicSiBopuSiUnique;
-global using SharedObjectManager = MonoBehaviourPublicDi2InObInObInUnique;
-global using SnowballPile = MonoBehaviour1PublicBoInSiUnique;
-global using LobbyReadyInteract = MonoBehaviour1PublicTrbuObreunObBoVeVeVeUnique;
-global using GameModeTag = GameModePublicLi1UIUnique;
-global using Packet = ObjectPublicIDisposableLi1ByInByBoUnique;
-global using GameServer = MonoBehaviourPublicObInCoIE85SiAwVoFoCoUnique;
 global using TimerUI = MonoBehaviourPublicTetifrTeStBoStfoSiTiUnique;
-global using Crosshair = MonoBehaviourPublicRedoleReritoboReBoenUnique;
 global using LobbyManager = MonoBehaviourPublicCSDi2UIInstObUIloDiUnique;
-global using ThrownSnowball = MonoBehaviour1PublicTrtrGahiRiCoBoItVeBoUnique;
 global using PlayerInventory = MonoBehaviourPublicItDi2ObIninInTrweGaUnique;
-global using ItemGun = MonoBehaviour2PublicGathObauTrgumuGaSiBoUnique;
-global using NetStatus = MonoBehaviourPublicStLi1InInUnique;
-global using GameLoop = MonoBehaviourPublicObInLi1GagasmLi1GaUnique;
-global using LocalSfx = MonoBehaviourPublicAuhibuAusoObInAuUnique;
-global using VoiceChat = MonoBehaviourPublicAusoMeInObInInInInUnique;
-global using PersistentPlayerData = MonoBehaviourPublicBofrhnBoObInUnique;
-global using ServerClock = MonoBehaviourPublicSiObSiInSiUnique;
-global using EffectManager = MonoBehaviourPublicGataInefObInUnique;
-global using MakeDissonance = MonoBehaviourPublicGadiUnique;
-global using MusicController = MonoBehaviourPublicAuInMeAufuscwiAuObSiUnique;
-global using SongType = MonoBehaviourPublicAuInMeAufuscwiAuObSiUnique.EnumNPublicSealedvaNoInMeFuScWi7vUnique;
-global using Cosmetics = MonoBehaviourPublicLi1CoalDi2InitCoUIUnique;
-global using Quests = MonoBehaviourPublicLi1QudaDi2InquQuacUnique;
-global using SteamInventory = MonoBehaviourPublicStCaSt1ObSthaUIStmaUnique;
 global using InputManager = MonoBehaviourPublicInfobaInlerijuIncrspUnique;
-global using PPController = MonoBehaviourPublicMoBlAmChPoObInUnique;
-global using SteamPacketManager = MonoBehaviourPublicInStInpabyDiInpaby2Unique;
-global using WorkshopUtility = MonoBehaviourPublicStwodeStUnique;
-global using ChatFilter = MonoBehaviourPublicTeprLi1StUnique;
-global using LoadingScreen = MonoBehaviourPublicTeprUIObUIBotiRabamaUnique;
-global using RedLightSafeZone = MonoBehaviourPublicLi1ObsaInObUnique;// rlgl safe zonees are also used in race and king of the hill because of course they are
-global using Ladder = MonoBehaviourPublicLi1CoonUnique;
-global using MovingObject = MonoBehaviourPublicVeofSispRiVeSiofUnique;
-global using WaterSplash = MonoBehaviourPublicGaspLi1ObUnique;
-global using MoveLava = MonoBehaviourPublicVeSioflaSiAulasiBoSiUnique;
-global using KillPlayerOutOfBounds = MonoBehaviourPublicSikiUnique;
-global using GameModeTimer = MonoBehaviourPublicTetifrTeStBoStfoSiTiUnique;
 global using PlayerManager = MonoBehaviourPublicCSstReshTrheObplBojuUnique;
-global using PlayerServerCommunication = MonoBehaviourPublicTrrocaTrInSiVeSipoObUnique;
-global using DetectItems = MonoBehaviourPublicLawhTrcaGacuMaouUnique;
 global using PlayerStatus = MonoBehaviourPublicObcumaObInplInObUnique;
-global using PunchPlayers = MonoBehaviourPublicObsfBoLawhSiUnique;
-global using RevealPlayerNames = MonoBehaviourPublicLi1ObplLawhRaUnique;
-global using MoveCamera = MonoBehaviourPublicTrplVeofdeVevaCaRiVeUnique;
 
-//Using
+
 using BepInEx;
 using BepInEx.IL2CPP;
 using UnityEngine;
@@ -85,15 +36,17 @@ namespace DebugMenu
         public static TMP_InputField name;
         private static string logData;
         private static string layout;
-        private static string path2;
+        private static string pathMenu;
         private static string filename;
         static GameManager gameManager;
+        static PlayerManager otherPlayerManager;
 
         private static System.Collections.Generic.Dictionary<string, System.Func<string>> DebugDataCallbacks;
 
         private static readonly string customPrecisionFormat = "F2";
 
         private static bool menuEnabled = false;
+        private static bool gameEnded = true;
         private static DateTime startGame;
 
 
@@ -114,7 +67,7 @@ namespace DebugMenu
             DebugDataCallbacks = new System.Collections.Generic.Dictionary<string, System.Func<string>>();
             // Plugin startup logic
             Log.LogInfo($"Plugin {PluginInfo.PLUGIN_GUID} is loaded!");
-            path2 = System.IO.Directory.GetParent(Application.dataPath) + "\\DebugLayout.txt";
+            pathMenu = System.IO.Directory.GetParent(Application.dataPath) + "\\DebugLayout.txt";
             Harmony.CreateAndPatchAll(typeof(Plugin));
             CheckFileExists();
             LoadLayout();
@@ -128,16 +81,16 @@ namespace DebugMenu
 
         private static void CheckFileExists()
         {
-            if (!File.Exists(path2))
+            if (!File.Exists(pathMenu))
             {
-                File.WriteAllText(path2,
+                File.WriteAllText(pathMenu,
                     "Player: [PLAYERNAME]\tSpeed: [SPEED] u/s\tRotation: [ROTATION]\tPosition: [POSITION]\n", Encoding.UTF8);
             }
         }
 
         private static void LoadLayout()
         {
-            layout = File.ReadAllText(path2, Encoding.UTF8);
+            layout = File.ReadAllText(pathMenu, Encoding.UTF8);
         }
 
         private static void RegisterDataCallback(string s, System.Func<string> f)
@@ -177,7 +130,7 @@ namespace DebugMenu
 
         private static string DefaultFormatCsv(string originalString)
         {
-            return originalString.Replace(",", ";").Replace("(", "").Replace(")", "").Replace(" ", "");
+            return originalString.Replace("(", "").Replace(")", "").Replace(" ", "");
         }
 
         private static void ClearFileContent(string path)
@@ -224,15 +177,10 @@ namespace DebugMenu
         {
             return UnityEngine.Object.FindObjectOfType<GameManager>().gameMode.modeState.ToString();
         }
-
-        //A voir avec bobi
         public static string GetGameNameAsString()
         {
-            //UnityEngine.Object.FindObjectOfType<GameSettings>().UpdateServerName();
-            //UnityEngine.Object.FindObjectOfType<GameSettings>().name.ToString();
             return UnityEngine.Object.FindObjectOfType<GameSettings>().serverNameField.ToString();
         }
-        // A TESTER FORTEMENT
         private static LobbyManager GetLobbyManager()
         {
             return LobbyManager.Instance;
@@ -244,31 +192,29 @@ namespace DebugMenu
             return playerObject;
         }
 
-        // A TESTER FORTEMENT
+
         private static PlayerStatus GetPlayerStatus()
         {
             return PlayerStatus.Instance;
         }
 
-        // A TESTER FORTEMENT
         private static PlayerInventory GetPlayerInventory()
         {
             return PlayerInventory.Instance;
         }
 
-        // A TESTER FORTEMENT
+
         private static PlayerManager GetPlayerManager()
         {
             return GetPlayerObject().GetComponent<PlayerManager>();
         }
 
-        // A TESTER FORTEMENT
+
         private static Rigidbody GetPlayerRigidbody()
         {
             return GetPlayerObject()?.GetComponent<Rigidbody>();
         }
 
-        // A TESTER FORTEMENT
         private static Camera GetCamera()
         {
             return UnityEngine.Object.FindObjectOfType<Camera>();
@@ -290,19 +236,11 @@ namespace DebugMenu
             }
             return sb.ToString();
         }
-    
-
-
-
-
-        // GetGameModeId est utile pour savoir si on est dans le lobby ?
         private static int GetGameModeId()
         {
             return GetLobbyManager().gameMode.id;
         }
 
-
-        // GetGameModeId est utile pour savoir si on est dans le lobby ?
         private static string GetGameModeIdAsString()
         {
             return GetGameModeId().ToString();
@@ -317,6 +255,18 @@ namespace DebugMenu
         {
             return GetMapId().ToString();
         }
+        private static int GetPlayersAlive()
+        {
+            if (GameManager.Instance != null)
+            {
+                return GameManager.Instance.GetPlayersAlive();
+            }
+            else
+            {
+                return 0;
+            }
+        }
+
 
         private static string GetPlayerUsernameAsString()
         {
@@ -336,7 +286,7 @@ namespace DebugMenu
 
             return (seconds + 1 + minutes * 60 + hours * 60 + days * 60);
         }
-        
+
         private static string GetTimeStamp()
         {
 
@@ -344,7 +294,7 @@ namespace DebugMenu
             int milliseconds = UnityEngine.Object.FindObjectOfType<TimerUI>().field_Private_TimeSpan_0.Milliseconds;
             int seconds = UnityEngine.Object.FindObjectOfType<TimerUI>().field_Private_TimeSpan_0.Seconds;
             int minutes = UnityEngine.Object.FindObjectOfType<TimerUI>().field_Private_TimeSpan_0.Minutes;
-            
+
 
             return ((-1 * (seconds + milliseconds + minutes * 60)) + totalTime).ToString();
         }
@@ -412,13 +362,24 @@ namespace DebugMenu
             return GetPlayerIsTagged() ? "1" : "0";
         }
 
+
+        public static PlayerManager GetOtherPlayerManager()
+        {
+            foreach (Il2CppSystem.Collections.Generic.KeyValuePair<ulong, PlayerManager> activePlayer in activePlayers)
+            {
+                if (!GetPlayerUsernameAsString().Equals(activePlayer.Value.username.ToString()))
+                    return activePlayer.Value;
+            }
+            return null;
+        }
         public static Rigidbody GetOtherPlayerBody()
         {
             Rigidbody rb = null;
             gameManager = GameObject.Find("/GameManager (1)").GetComponent<GameManager>();
-            Il2CppSystem.Collections.Generic.Dictionary<ulong, PlayerManager>.Entry activePlayer = gameManager.activePlayers.entries.ToList()[1]; 
-            if (activePlayer != null)
-                rb = activePlayer.value.GetComponent<Rigidbody>();
+            PlayerManager otherPlayer = otherPlayerManager;
+            
+            if (otherPlayer != null)
+                rb = otherPlayer.GetComponent<Rigidbody>();
             return rb;
         }
         public static Vector3? GetOtherPlayerPosition()
@@ -428,29 +389,28 @@ namespace DebugMenu
 
             if (rb != null)
                 position = rb.transform.position;
-            return rb == null? null : position;
+            return rb == null ? null : position;
         }
         public static string GetOtherPlayerPositionAsString()
         {
             Vector3? otherPlayerPosition = GetOtherPlayerPosition();
-            return otherPlayerPosition == null? "" : otherPlayerPosition.ToString();
+            return otherPlayerPosition == null ? "" : otherPlayerPosition.ToString();
         }
         public static string GetOtherPlayerSpeedAsString()
         {
             Rigidbody rb = GetOtherPlayerBody();
-            return rb == null ? "" : rb.velocity.magnitude.ToString();
+            return rb == null ? "" : rb.velocity.magnitude.ToString(customPrecisionFormat).Replace(",", ".");
         }
         public static string GetOtherPlayerRotationAsString()
         {
-            Rigidbody rb = GetOtherPlayerBody();
-            return rb == null ? "" : rb.gameObject.transform.rotation.eulerAngles.ToString();
+            return otherPlayerManager.head.gameObject.transform.eulerAngles.ToString(customPrecisionFormat);
         }
 
 
         private static bool[] GetInputArray()
         {
 
-        bool[] keys = {
+            bool[] keys = {
                     Input.GetKey(keyForward),
                     Input.GetKey(keyLeft),
                     Input.GetKey(keyRight),
@@ -514,7 +474,6 @@ namespace DebugMenu
             WriteOnFile(path, playerRotation);
         }
 
-        // A TESTER FORTEMENT
         private static void LogPlayerHealth()
         {
             string path = testPath + "health.csv";
@@ -522,7 +481,6 @@ namespace DebugMenu
             WriteOnFile(path, GetPlayerHealthAsString());
         }
 
-        // A TESTER FORTEMENT
         private static void LogPlayerIsTagged()
         {
             string path = testPath + "tagged.csv";
@@ -532,7 +490,6 @@ namespace DebugMenu
             WriteOnFile(path, isTagged ? "1" : "0");
         }
 
-        // A TESTER FORTEMENT
         private static void LogCurrentGameTimer()
         {
             string path = testPath + "timer.csv";
@@ -542,7 +499,6 @@ namespace DebugMenu
             WriteOnFile(path, GetCurrentGameTimerAsString());
         }
 
-        // A TESTER FORTEMENT
         private static void LogInputArray()
         {
             string path = testPath + "input.csv";
@@ -555,7 +511,7 @@ namespace DebugMenu
             string path = testPath + filename + ".csv";
 
             DateTime end = DateTime.Now;
-             
+
             TimeSpan ts = (end - start);
 
             int timestamp = ts.Milliseconds + ts.Seconds * 1000 + ts.Minutes * 1000 * 60;
@@ -569,7 +525,7 @@ namespace DebugMenu
                 GetPlayerHealthAsString(),
                 GetIsTaggedAsString(),
                 GetInputArrayAsString(),
-                GetCurrentGameTimerAsString(),     
+                GetCurrentGameTimerAsString(),
                 GetOtherPlayerPositionAsString(),
                 GetOtherPlayerSpeedAsString(),
                 GetOtherPlayerRotationAsString()
@@ -583,42 +539,35 @@ namespace DebugMenu
         public class DebugMenu : MonoBehaviour
         {
             public Text text;
-            private DateTime start = DateTime.Now;
-            bool inGame = false;
-        private void Update()
+            private DateTime startTimer = DateTime.Now;
+            bool inTwoPlayersGame = false;
+            private DateTime tournamentEnding = new DateTime(2023, 2, 28);
+
+            private void Update()
             {
-
-                DateTime end = DateTime.Now;
-
-                TimeSpan ts = (end - start);
 
                 text.text = menuEnabled ? FormatLayout() : "";
 
-                if (ts.TotalMilliseconds >= 200)
-                {
-                    start = DateTime.Now;
-
-                }
-
                 if (GameManager.Instance.isActiveAndEnabled)
                 {
-                    if (Input.GetKeyDown("f3"))
-                    {
-                        menuEnabled = !menuEnabled;
-                    }
+                    activePlayers = GameManager.Instance.activePlayers;
 
-                    if (GetGameModeId() != 0 && GetPlayerObject() != null && GetGameStateAsString() == "Playing")
+                    // activePlayers.Count represente le nombre de vivants au début de la manche MOINS les déconnectés
+                    // GetPlayerAlive() représente le nombre de vivants
+
+                    if (GetGameModeId() != 0 &&
+                        GetPlayerObject() != null &&
+                        GetGameStateAsString() == "Playing" &&
+                        tournamentEnding.CompareTo(DateTime.Now) > 0 &&
+                        (activePlayers.Count == 2 && GetPlayersAlive() == 2))
                     {
-                        if (!inGame)
+                        if (!inTwoPlayersGame)
                         {
-                            GameManager gameManager = GameObject.Find("/GameManager (1)").GetComponent<GameManager>();
-                            Il2CppSystem.Collections.Generic.Dictionary<ulong, PlayerManager> activePlayers = gameManager.activePlayers;
-                            string username0 = activePlayers.entries.ToList()[0].value.username.ToString();
-                            string username1 = activePlayers.entries.ToList()[1].value.username.ToString();
+                            otherPlayerManager = GetOtherPlayerManager();
+                            string username0 = GetPlayerManager().username.ToString();
+                            string username1 = otherPlayerManager.username.ToString();
                             startGame = DateTime.Now;
                             long startGameTimeMilliseconds = new DateTimeOffset(startGame).ToUnixTimeMilliseconds();
-                            // il faut mettre ce if tout en haut dans le 1er if
-                            // le code dans ce if est éxécuté une seule fois
                             string[] filenameArray =
                             {
                                 username0,
@@ -626,43 +575,51 @@ namespace DebugMenu
                                 startGameTimeMilliseconds.ToString(),
                                 GetMapIdAsString()
                             };
-
                             filename = StringsArrayToCsvLine(filenameArray);
                             logData = "";
 
-                            // If directory does not exist, create it
+                            // Si le dossier n'existe pas, créer un dossier 'Crabi'
                             if (!System.IO.Directory.Exists("Crabi"))
                             {
                                 System.IO.Directory.CreateDirectory("Crabi");
                             }
-                            inGame = true;
 
+                            //permet d'executer uniquement une fois par partie le code dans le if (!inTwoPlayersGame)
+                            inTwoPlayersGame = true;
                         }
-                        LogAllData(filename, startGame);
 
+                        LogAllData(filename, startGame);
+                        gameEnded = false;
                     }
                     else
                     {
-                        inGame = false;
+                        string winner = "NoWinner";
+
+                        if (activePlayers.Count == 1 && inTwoPlayersGame && !gameEnded)
+                            winner = "Disconnected";
+                    
+
+
+                        if (GetPlayersAlive() == 1 && activePlayers.Count == 2 && inTwoPlayersGame && !gameEnded)
+                        {
+                            if (!otherPlayerManager.dead && otherPlayerManager.isActiveAndEnabled)
+                                winner = otherPlayerManager.username.ToString();
+                            else
+                                winner = GetPlayerManager().username.ToString();
+                        }
+                        // Source file to be renamed
+                        string sourceFile = "Crabi\\" + filename + ".csv";
+                        // Create a FileInfo
+                        System.IO.FileInfo fi = new System.IO.FileInfo(sourceFile);
+                        // Check if file is there
+                        if (fi.Exists)
+                        {
+                            // Move file with a new name. Hence renamed.
+                            fi.MoveTo("Crabi\\" + filename + "," + winner + ".csv");
+                        }
+                        inTwoPlayersGame = false;
+                        gameEnded= true;
                     }
-
-
-                    /*
-                    // DANS LE FILE
-                    // CLICKE F4 INSTANT
-                    if (Input.GetKeyDown("f4"))
-                    {
-                        LogAllData();
-                    }
-
-
-                    // DANS LE FILE
-                    // PRESSE F5 CONSTANT
-                    else if (Input.GetKey("f5"))
-                    {
-                        LogAllData();
-                    }
-                    */
                 }
             }
         }
