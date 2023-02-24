@@ -175,7 +175,7 @@ namespace DebugMenu
 
         public static string GetGameStateAsString()
         {
-            return UnityEngine.Object.FindObjectOfType<GameManager>().gameMode.modeState.ToString();
+            return UnityEngine.Object.FindObjectOfType<GameManager>()?.gameMode.modeState.ToString();
         }
         public static string GetGameNameAsString()
         {
@@ -377,7 +377,7 @@ namespace DebugMenu
             Rigidbody rb = null;
             gameManager = GameObject.Find("/GameManager (1)").GetComponent<GameManager>();
             PlayerManager otherPlayer = otherPlayerManager;
-            
+
             if (otherPlayer != null)
                 rb = otherPlayer.GetComponent<Rigidbody>();
             return rb;
@@ -447,68 +447,11 @@ namespace DebugMenu
             return StringsArrayToCsvLine(keysString);
         }
 
-        private static void LogPlayerSpeed()
-        {
-            string path = testPath + "speed.csv";
-
-            string speedString = GetPlayerSpeedAsString();
-
-            WriteOnFile(path, speedString);
-        }
-
-        private static void LogPlayerPosition()
-        {
-            string path = testPath + "pos.csv";
-
-            string posString = GetPlayerPositionAsString();
-
-            WriteOnFile(path, posString);
-        }
-
-        private static void LogPlayerRotation()
-        {
-            string path = testPath + "rotation.csv";
-
-            string playerRotation = GetPlayerRotationAsString();
-
-            WriteOnFile(path, playerRotation);
-        }
-
-        private static void LogPlayerHealth()
-        {
-            string path = testPath + "health.csv";
-
-            WriteOnFile(path, GetPlayerHealthAsString());
-        }
-
-        private static void LogPlayerIsTagged()
-        {
-            string path = testPath + "tagged.csv";
-            PlayerInventory playerInventory = GetPlayerInventory();
-            bool isTagged = playerInventory.currentItem != null;
-
-            WriteOnFile(path, isTagged ? "1" : "0");
-        }
-
-        private static void LogCurrentGameTimer()
-        {
-            string path = testPath + "timer.csv";
-            PlayerInventory playerInventory = GetPlayerInventory();
-            bool isTagged = playerInventory.currentItem != null;
-
-            WriteOnFile(path, GetCurrentGameTimerAsString());
-        }
-
-        private static void LogInputArray()
-        {
-            string path = testPath + "input.csv";
-
-            WriteOnFile(path, GetInputArrayAsString());
-        }
-
         private static void LogAllData(string filename, DateTime start)
         {
-            string path = testPath + filename + ".csv";
+            // Interrupted représente tous les problèmes d'interruptions de match sans aucun mort
+            // on écrit le statut de la partie comme Interrupted  par défaut et on modifie le statut si tout se passe bien
+            string path = testPath + filename + ",Interrupted.csv";
 
             DateTime end = DateTime.Now;
 
@@ -517,7 +460,7 @@ namespace DebugMenu
             int timestamp = ts.Milliseconds + ts.Seconds * 1000 + ts.Minutes * 1000 * 60;
 
             string[] stringArray =
-            {
+                        {
                 timestamp.ToString(),
                 GetPlayerPositionAsString(),
                 GetPlayerSpeedAsString(),
@@ -547,6 +490,7 @@ namespace DebugMenu
             {
 
                 text.text = menuEnabled ? FormatLayout() : "";
+
 
                 if (GameManager.Instance.isActiveAndEnabled)
                 {
@@ -593,32 +537,39 @@ namespace DebugMenu
                     }
                     else
                     {
-                        string winner = "NoWinner";
-
-                        if (activePlayers.Count == 1 && inTwoPlayersGame && !gameEnded)
-                            winner = "Disconnected";
-                    
-
-
-                        if (GetPlayersAlive() == 1 && activePlayers.Count == 2 && inTwoPlayersGame && !gameEnded)
+                        // renomme le fichier une seule fois par partie
+                        if (!gameEnded)
                         {
-                            if (!otherPlayerManager.dead && otherPlayerManager.isActiveAndEnabled)
-                                winner = otherPlayerManager.username.ToString();
-                            else
-                                winner = GetPlayerManager().username.ToString();
+                            string winner = "Interrupted";
+
+                            if (GetPlayersAlive() == 0 && activePlayers.Count == 2 && inTwoPlayersGame)
+                            {
+                                winner = "NoWinner";
+                            }
+
+                            if (GetPlayersAlive() == 1 && activePlayers.Count == 2 && inTwoPlayersGame)
+                            {
+                                if (!otherPlayerManager.dead && otherPlayerManager.isActiveAndEnabled)
+                                    winner = otherPlayerManager.username.ToString();
+                                else
+                                    winner = GetPlayerManager().username.ToString();
+                            }
+
+                            // Source file to be renamed
+                            string sourceFile = "Crabi\\" + filename + ",Interrupted.csv";
+
+                            // Create a FileInfo
+                            System.IO.FileInfo fi = new System.IO.FileInfo(sourceFile);
+                            // Check if file is there
+                            if (fi.Exists)
+                            {
+                                // Move file with a new name. Hence renamed.
+                                fi.MoveTo("Crabi\\" + filename + "," + winner + ".csv");
+                            }
                         }
-                        // Source file to be renamed
-                        string sourceFile = "Crabi\\" + filename + ".csv";
-                        // Create a FileInfo
-                        System.IO.FileInfo fi = new System.IO.FileInfo(sourceFile);
-                        // Check if file is there
-                        if (fi.Exists)
-                        {
-                            // Move file with a new name. Hence renamed.
-                            fi.MoveTo("Crabi\\" + filename + "," + winner + ".csv");
-                        }
+
                         inTwoPlayersGame = false;
-                        gameEnded= true;
+                        gameEnded = true;
                     }
                 }
             }
